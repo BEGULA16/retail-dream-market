@@ -8,4 +8,5 @@ export interface Product {
   category: string;
   description: string;
   link?: string;
+  stock?: number;
 }

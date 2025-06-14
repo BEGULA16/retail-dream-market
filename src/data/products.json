@@ -8,7 +8,8 @@
     "price": "$1,200",
     "image": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600&q=80",
     "info": "A sleek, modern laptop on a desk.",
-    "link": "#"
+    "link": "#",
+    "stock": 15
   },
   {
     "id": 2,
@@ -18,7 +19,8 @@
     "price": "$1,450",
     "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&q=80",
     "info": "MacBook with code on the screen.",
-    "link": "#"
+    "link": "#",
+    "stock": 8
   },
   {
     "id": 3,
@@ -28,7 +30,8 @@
     "price": "$20",
     "image": "https://images.unsplash.com/photo-1581655353564-df123a164d2b?w=600&q=80",
     "info": "A gray t-shirt.",
-    "link": "#"
+    "link": "#",
+    "stock": 50
   },
   {
     "id": 4,
@@ -38,6 +41,7 @@
     "price": "$25",
     "image": "https://images.unsplash.com/photo-1589998059171-988d887df646?w=600&q=80",
     "info": "An open book on a table.",
-    "link": "#"
+    "link": "#",
+    "stock": 100
   }
 ]

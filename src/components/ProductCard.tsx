@@ -28,7 +28,14 @@ const ProductCard = ({ product }: ProductCardProps) => {
           </a>
         </h3>
         <p className="mt-1 text-sm text-muted-foreground truncate">{product.description}</p>
-        <p className="mt-2 text-lg font-bold text-primary">{product.price}</p>
+        <div className="mt-2 flex items-baseline justify-between">
+          <p className="text-lg font-bold text-primary">{product.price}</p>
+          {typeof product.stock !== 'undefined' && (
+            <p className="text-sm text-muted-foreground">
+              {product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock'}
+            </p>
+          )}
+        </div>
         <div className="mt-auto pt-4">
           <Button className="w-full">
             Place order
