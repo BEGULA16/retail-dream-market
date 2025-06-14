@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Fuse from "fuse.js";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,14 +25,22 @@ const Index = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    const categoryFiltered = products.filter((product) => {
       const matchesCategory =
         selectedCategory === "All" || product.category === selectedCategory;
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
+      return matchesCategory;
     });
+
+    if (!searchTerm.trim()) {
+      return categoryFiltered;
+    }
+
+    const fuse = new Fuse(categoryFiltered, {
+      keys: ["name", "description"],
+      threshold: 0.4, // This adjusts how "fuzzy" the search is.
+    });
+
+    return fuse.search(searchTerm).map((result) => result.item);
   }, [searchTerm, selectedCategory]);
 
   return (
