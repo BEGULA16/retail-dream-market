@@ -6,8 +6,13 @@ import ProductCard from "@/components/ProductCard";
 import products from "@/data/products.json";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,21 +49,20 @@ const Index = () => {
                 className="pl-10 w-full"
               />
             </div>
-            <ScrollArea className="w-full md:w-auto">
-              <div className="flex space-x-2 pb-2">
-                {categories.map((category) => (
-                  <Button
-                    key={category}
-                    variant={selectedCategory === category ? "default" : "outline"}
-                    onClick={() => setSelectedCategory(category)}
-                    className="whitespace-nowrap"
-                  >
-                    {category}
-                  </Button>
-                ))}
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+            <div className="w-full md:w-auto">
+              <Select onValueChange={setSelectedCategory} value={selectedCategory}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-8">
