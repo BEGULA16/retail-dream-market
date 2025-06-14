@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -70,7 +69,7 @@ const Index = () => {
                 className="pl-10 w-full"
               />
             </div>
-            <div className="w-full sm:w-auto">
+            <div className="flex w-full sm:w-auto gap-4">
               <Select onValueChange={setSelectedCategory} value={selectedCategory}>
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Select a category" />
@@ -83,8 +82,6 @@ const Index = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="w-full sm:w-auto">
               <Select onValueChange={setSortOption} value={sortOption}>
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Sort by" />
