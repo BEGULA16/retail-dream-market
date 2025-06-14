@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -19,7 +18,6 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("default");
-  const [selectedAvailability, setSelectedAvailability] = useState("all");
 
   const categories = useMemo(() => {
     const allCategories = products.map((p) => p.category);
@@ -27,23 +25,12 @@ const Index = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    const categoryFiltered = products.filter((product) => {
+    let productsToDisplay = products.filter((product) => {
       return selectedCategory === "All" || product.category === selectedCategory;
     });
 
-    const availabilityFiltered = categoryFiltered.filter((product) => {
-      if (selectedAvailability === "all") return true;
-      if (selectedAvailability === "in-stock")
-        return product.stock && product.stock > 0;
-      if (selectedAvailability === "out-of-stock")
-        return !product.stock || product.stock <= 0;
-      return true;
-    });
-
-    let productsToDisplay = availabilityFiltered;
-
     if (searchTerm.trim()) {
-      const fuse = new Fuse(availabilityFiltered, {
+      const fuse = new Fuse(productsToDisplay, {
         keys: ["name", "description"],
         threshold: 0.4,
       });
@@ -70,7 +57,7 @@ const Index = () => {
     }
 
     return productsToDisplay;
-  }, [searchTerm, selectedCategory, sortOption, selectedAvailability]);
+  }, [searchTerm, selectedCategory, sortOption]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -87,7 +74,7 @@ const Index = () => {
                 className="pl-10 w-full"
               />
             </div>
-            <div className="grid grid-cols-3 sm:flex w-full sm:w-auto gap-4">
+            <div className="grid grid-cols-2 sm:flex w-full sm:w-auto gap-4">
               <Select onValueChange={setSelectedCategory} value={selectedCategory}>
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Categories" />
@@ -100,19 +87,6 @@ const Index = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                onValueChange={setSelectedAvailability}
-                value={selectedAvailability}
-              >
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Availability" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="in-stock">In Stock</SelectItem>
-                  <SelectItem value="out-of-stock">Out of Stock</SelectItem>
-                </SelectContent>
-              </Select>
               <Select onValueChange={setSortOption} value={sortOption}>
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Sort by" />
@@ -122,7 +96,7 @@ const Index = () => {
                   <SelectItem value="price-asc">Price: Low to High</SelectItem>
                   <SelectItem value="price-desc">Price: High to Low</SelectItem>
                   <SelectItem value="stock-desc">Most Stock</SelectItem>
-                  <SelectItem value="stock-asc">Out of Stock</SelectItem>
+                  <SelectItem value="stock-asc">Least Stock</SelectItem>
                 </SelectContent>
               </Select>
             </div>

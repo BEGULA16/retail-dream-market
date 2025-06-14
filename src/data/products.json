@@ -1,4 +1,3 @@
-
 [
   {
     "id": 1,
@@ -9,7 +8,7 @@
     "image": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600&q=80",
     "info": "This is the 'info' text for the Sleek Laptop, which is meant to be a longer and more detailed description than the one on the product card. It can contain multiple sentences and provide specs, features, and benefits.",
     "link": "#",
-    "stock": 15
+    "stock": 0
   },
   {
     "id": 2,

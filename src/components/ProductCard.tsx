@@ -9,8 +9,14 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
+  const isOutOfStock = !product.stock || product.stock <= 0;
+
   return (
-    <div className="group relative border rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col">
+    <div
+      className={`group relative border rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col ${
+        isOutOfStock ? "opacity-60 grayscale" : ""
+      }`}
+    >
       <div className="aspect-square w-full overflow-hidden bg-gray-200">
         <img
           src={product.image}
@@ -23,22 +29,29 @@ const ProductCard = ({ product }: ProductCardProps) => {
           {product.category}
         </Badge>
         <h3 className="text-base font-semibold text-foreground">
-          <Link to={`/product/${product.id}`}>
+          <Link
+            to={`/product/${product.id}`}
+            className={isOutOfStock ? "pointer-events-none" : ""}
+          >
             <span aria-hidden="true" className="absolute inset-0" />
             {product.name}
           </Link>
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground truncate">{product.description}</p>
+        <p className="mt-1 text-sm text-muted-foreground truncate">
+          {product.description}
+        </p>
         <div className="mt-2 flex items-baseline justify-between">
           <p className="text-lg font-bold text-primary">{product.price}</p>
-          {typeof product.stock !== 'undefined' && (
+          {typeof product.stock !== "undefined" && (
             <p className="text-sm text-muted-foreground">
-              {product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock'}
+              {product.stock > 0
+                ? `${product.stock} in stock`
+                : "Out of Stock"}
             </p>
           )}
         </div>
         <div className="mt-auto pt-4">
-          <Button className="w-full">
+          <Button className="w-full" disabled={isOutOfStock}>
             Place order
           </Button>
         </div>
