@@ -60,8 +60,8 @@ const Index = () => {
       <Header />
       <main className="flex-grow">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
-            <div className="relative w-full md:w-auto md:flex-grow">
+          <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
+            <div className="relative w-full sm:flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search products..."
@@ -70,9 +70,9 @@ const Index = () => {
                 className="pl-10 w-full"
               />
             </div>
-            <div className="w-full md:w-auto">
+            <div className="w-full sm:w-auto">
               <Select onValueChange={setSelectedCategory} value={selectedCategory}>
-                <SelectTrigger className="w-full md:w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -84,9 +84,9 @@ const Index = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-full md:w-auto">
+            <div className="w-full sm:w-auto">
               <Select onValueChange={setSortOption} value={sortOption}>
-                <SelectTrigger className="w-full md:w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>

@@ -43,7 +43,7 @@ const ProductDetail = () => {
               {product.category}
             </Badge>
             <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground mb-4">{product.name}</h1>
-            <p className="text-muted-foreground text-lg mb-6">{product.description}</p>
+            <p className="text-muted-foreground text-lg mb-6">{product.info}</p>
             <div className="flex items-baseline justify-between mb-6">
                 <p className="text-3xl font-bold text-primary">{product.price}</p>
                 {typeof product.stock !== 'undefined' && (
