@@ -22,7 +22,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           {product.category}
         </Badge>
         <h3 className="text-base font-semibold text-foreground">
-          <a href="#">
+          <a href={product.link || '#'}>
             <span aria-hidden="true" className="absolute inset-0" />
             {product.name}
           </a>

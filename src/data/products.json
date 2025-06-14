@@ -7,7 +7,8 @@
     "description": "A sleek, modern laptop perfect for work and play.",
     "price": "$1,200",
     "image": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600&q=80",
-    "info": "A sleek, modern laptop on a desk."
+    "info": "A sleek, modern laptop on a desk.",
+    "link": "#"
   },
   {
     "id": 2,
@@ -16,7 +17,8 @@
     "description": "The perfect tool for any developer, with a powerful processor.",
     "price": "$1,450",
     "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&q=80",
-    "info": "MacBook with code on the screen."
+    "info": "MacBook with code on the screen.",
+    "link": "#"
   },
   {
     "id": 3,
@@ -25,7 +27,8 @@
     "description": "A reliable and affordable t-shirt for everyday tasks.",
     "price": "$20",
     "image": "https://images.unsplash.com/photo-1581655353564-df123a164d2b?w=600&q=80",
-    "info": "A gray t-shirt."
+    "info": "A gray t-shirt.",
+    "link": "#"
   },
   {
     "id": 4,
@@ -34,6 +37,7 @@
     "description": "How to build a business that does more with less.",
     "price": "$25",
     "image": "https://images.unsplash.com/photo-1589998059171-988d887df646?w=600&q=80",
-    "info": "An open book on a table."
+    "info": "An open book on a table.",
+    "link": "#"
   }
 ]

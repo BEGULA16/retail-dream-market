@@ -7,4 +7,5 @@ export interface Product {
   info: string;
   category: string;
   description: string;
+  link?: string;
 }
