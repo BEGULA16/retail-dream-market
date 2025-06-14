@@ -6,8 +6,10 @@ export interface Product {
   id: number;
   name: string;
   price: string;
-  imageUrl: string;
-  imageAlt: string;
+  image: string;
+  info: string;
+  category: string;
+  description: string;
 }
 
 interface ProductCardProps {
@@ -19,8 +21,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
     <div className="group relative border rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col">
       <div className="aspect-square w-full overflow-hidden bg-gray-200">
         <img
-          src={product.imageUrl}
-          alt={product.imageAlt}
+          src={product.image}
+          alt={product.info}
           className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
         />
       </div>
@@ -31,7 +33,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
             {product.name}
           </a>
         </h3>
-        <p className="mt-1 text-lg font-bold text-primary">{product.price}</p>
+        <p className="mt-1 text-sm text-muted-foreground truncate">{product.description}</p>
+        <p className="mt-2 text-lg font-bold text-primary">{product.price}</p>
         <div className="mt-auto pt-4">
           <Button className="w-full">
             <ShoppingCart className="mr-2 h-4 w-4" /> Add to cart
