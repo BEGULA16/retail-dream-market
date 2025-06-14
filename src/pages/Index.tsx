@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -18,6 +19,7 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("default");
+  const [selectedAvailability, setSelectedAvailability] = useState("all");
 
   const categories = useMemo(() => {
     const allCategories = products.map((p) => p.category);
@@ -26,21 +28,28 @@ const Index = () => {
 
   const filteredProducts = useMemo(() => {
     const categoryFiltered = products.filter((product) => {
-      const matchesCategory =
-        selectedCategory === "All" || product.category === selectedCategory;
-      return matchesCategory;
+      return selectedCategory === "All" || product.category === selectedCategory;
     });
 
-    let productsToDisplay = categoryFiltered;
+    const availabilityFiltered = categoryFiltered.filter((product) => {
+      if (selectedAvailability === "all") return true;
+      if (selectedAvailability === "in-stock")
+        return product.stock && product.stock > 0;
+      if (selectedAvailability === "out-of-stock")
+        return !product.stock || product.stock <= 0;
+      return true;
+    });
+
+    let productsToDisplay = availabilityFiltered;
 
     if (searchTerm.trim()) {
-      const fuse = new Fuse(categoryFiltered, {
+      const fuse = new Fuse(availabilityFiltered, {
         keys: ["name", "description"],
         threshold: 0.4,
       });
       productsToDisplay = fuse.search(searchTerm).map((result) => result.item);
     }
-    
+
     if (sortOption !== "default") {
       const parsePrice = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
       // Create a new array before sorting to avoid mutating the original
@@ -52,7 +61,7 @@ const Index = () => {
     }
 
     return productsToDisplay;
-  }, [searchTerm, selectedCategory, sortOption]);
+  }, [searchTerm, selectedCategory, sortOption, selectedAvailability]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -69,17 +78,30 @@ const Index = () => {
                 className="pl-10 w-full"
               />
             </div>
-            <div className="flex w-full sm:w-auto gap-4">
+            <div className="grid grid-cols-3 sm:flex w-full sm:w-auto gap-4">
               <Select onValueChange={setSelectedCategory} value={selectedCategory}>
                 <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder="Categories" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
-                      {category}
+                      {category === "All" ? "Categories" : category}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select
+                onValueChange={setSelectedAvailability}
+                value={selectedAvailability}
+              >
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Availability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="in-stock">In Stock</SelectItem>
+                  <SelectItem value="out-of-stock">Out of Stock</SelectItem>
                 </SelectContent>
               </Select>
               <Select onValueChange={setSortOption} value={sortOption}>
@@ -87,7 +109,7 @@ const Index = () => {
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
+                  <SelectItem value="default">Sort</SelectItem>
                   <SelectItem value="price-asc">Price: Low to High</SelectItem>
                   <SelectItem value="price-desc">Price: High to Low</SelectItem>
                 </SelectContent>
