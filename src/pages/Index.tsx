@@ -18,6 +18,7 @@ import Fuse from "fuse.js";
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortOption, setSortOption] = useState("default");
 
   const categories = useMemo(() => {
     const allCategories = products.map((p) => p.category);
@@ -31,17 +32,28 @@ const Index = () => {
       return matchesCategory;
     });
 
-    if (!searchTerm.trim()) {
-      return categoryFiltered;
+    let productsToDisplay = categoryFiltered;
+
+    if (searchTerm.trim()) {
+      const fuse = new Fuse(categoryFiltered, {
+        keys: ["name", "description"],
+        threshold: 0.4,
+      });
+      productsToDisplay = fuse.search(searchTerm).map((result) => result.item);
+    }
+    
+    if (sortOption !== "default") {
+      const parsePrice = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
+      // Create a new array before sorting to avoid mutating the original
+      productsToDisplay = [...productsToDisplay].sort((a, b) => {
+        const priceA = parsePrice(a.price);
+        const priceB = parsePrice(b.price);
+        return sortOption === "price-asc" ? priceA - priceB : priceB - priceA;
+      });
     }
 
-    const fuse = new Fuse(categoryFiltered, {
-      keys: ["name", "description"],
-      threshold: 0.4, // This adjusts how "fuzzy" the search is.
-    });
-
-    return fuse.search(searchTerm).map((result) => result.item);
-  }, [searchTerm, selectedCategory]);
+    return productsToDisplay;
+  }, [searchTerm, selectedCategory, sortOption]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -69,6 +81,18 @@ const Index = () => {
                       {category}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-auto">
+              <Select onValueChange={setSortOption} value={sortOption}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
