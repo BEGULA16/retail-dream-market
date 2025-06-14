@@ -2,6 +2,7 @@
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
+import { ThemeToggle } from './ThemeToggle';
 
 const Header = () => {
   const items = useCartStore((state) => state.items);
@@ -19,6 +20,7 @@ const Header = () => {
             <a href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
               Products
             </a>
+            <ThemeToggle />
             <Button variant="ghost" size="icon" className="relative">
               <ShoppingCart className="h-5 w-5" />
               {items.length > 0 && (

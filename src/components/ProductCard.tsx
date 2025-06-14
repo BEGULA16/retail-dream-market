@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { Product } from "@/types";
 import { useCartStore } from "@/store/cart";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/sonner";
 
 interface ProductCardProps {
   product: Product;
@@ -14,8 +14,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   const handleAddToCart = () => {
     addToCart(product);
-    toast({
-      title: "Added to cart",
+    toast("Added to cart", {
       description: `"${product.name}" has been added to your cart.`,
     });
   };
