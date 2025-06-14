@@ -77,7 +77,7 @@ const Index = () => {
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl mb-8">
             Our Products
           </h1>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {filteredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
