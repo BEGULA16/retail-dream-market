@@ -54,9 +54,18 @@ const Index = () => {
       const parsePrice = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
       // Create a new array before sorting to avoid mutating the original
       productsToDisplay = [...productsToDisplay].sort((a, b) => {
-        const priceA = parsePrice(a.price);
-        const priceB = parsePrice(b.price);
-        return sortOption === "price-asc" ? priceA - priceB : priceB - priceA;
+        switch (sortOption) {
+          case "price-asc":
+            return parsePrice(a.price) - parsePrice(b.price);
+          case "price-desc":
+            return parsePrice(b.price) - parsePrice(a.price);
+          case "stock-asc":
+            return (a.stock ?? 0) - (b.stock ?? 0);
+          case "stock-desc":
+            return (b.stock ?? 0) - (a.stock ?? 0);
+          default:
+            return 0;
+        }
       });
     }
 
@@ -112,6 +121,8 @@ const Index = () => {
                   <SelectItem value="default">Sort</SelectItem>
                   <SelectItem value="price-asc">Price: Low to High</SelectItem>
                   <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                  <SelectItem value="stock-desc">Most Stock</SelectItem>
+                  <SelectItem value="stock-asc">Out of Stock</SelectItem>
                 </SelectContent>
               </Select>
             </div>
