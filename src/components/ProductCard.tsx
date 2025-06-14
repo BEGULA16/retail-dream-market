@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Product } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +23,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
           {product.category}
         </Badge>
         <h3 className="text-base font-semibold text-foreground">
-          <a href={`/product/${product.id}`}>
+          <Link to={`/product/${product.id}`}>
             <span aria-hidden="true" className="absolute inset-0" />
             {product.name}
-          </a>
+          </Link>
         </h3>
         <p className="mt-1 text-sm text-muted-foreground truncate">{product.description}</p>
         <div className="mt-2 flex items-baseline justify-between">
