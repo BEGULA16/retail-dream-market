@@ -20,20 +20,20 @@
   },
   {
     "id": 3,
-    "category": "Electronics",
-    "name": "Gray Laptop",
-    "description": "A reliable and affordable laptop for everyday tasks.",
-    "price": "$950",
-    "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&q=80",
-    "info": "A gray laptop computer turned on."
+    "category": "Apparel",
+    "name": "Gray T-Shirt",
+    "description": "A reliable and affordable t-shirt for everyday tasks.",
+    "price": "$20",
+    "image": "https://images.unsplash.com/photo-1581655353564-df123a164d2b?w=600&q=80",
+    "info": "A gray t-shirt."
   },
   {
     "id": 4,
-    "category": "Electronics",
-    "name": "Workstation Pro",
-    "description": "A high-performance workstation for demanding professionals.",
-    "price": "$1,999",
-    "image": "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=600&q=80",
-    "info": "A person using a MacBook Pro at a desk."
+    "category": "Books",
+    "name": "The Minimalist Entrepreneur",
+    "description": "How to build a business that does more with less.",
+    "price": "$25",
+    "image": "https://images.unsplash.com/photo-1589998059171-988d887df646?w=600&q=80",
+    "info": "An open book on a table."
   }
 ]

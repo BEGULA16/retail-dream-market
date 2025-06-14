@@ -1,6 +1,4 @@
 
-import { ShoppingCart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 
 const Header = () => {
@@ -18,10 +16,6 @@ const Header = () => {
               Products
             </a>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="h-5 w-5" />
-              <span className="sr-only">Shopping Cart</span>
-            </Button>
           </div>
         </div>
       </nav>
