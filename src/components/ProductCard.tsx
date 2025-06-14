@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Product } from "@/types";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +18,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
         />
       </div>
       <div className="p-4 flex flex-col flex-grow">
+        <Badge variant="secondary" className="w-fit mb-2">
+          {product.category}
+        </Badge>
         <h3 className="text-base font-semibold text-foreground">
           <a href="#">
             <span aria-hidden="true" className="absolute inset-0" />
