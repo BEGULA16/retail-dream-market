@@ -44,18 +44,25 @@ const AdminPanel = () => {
     const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
-        mutationFn: async ({ userId, newBanStatus }: { userId: string, newBanStatus: boolean }) => {
-            const { error } = await supabase
-                .from('profiles')
-                .update({ is_banned: newBanStatus, banned_until: null }) // Unbanning clears any restriction
-                .eq('id', userId);
-            
-            if (error) {
-                throw new Error(error.message);
+        mutationFn: async ({ userId, isCurrentlyBanned }: { userId: string, isCurrentlyBanned: boolean }) => {
+            // If the user is currently banned (in any state), we unban them.
+            if (isCurrentlyBanned) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ is_banned: false, banned_until: null })
+                    .eq('id', userId);
+                if (error) throw new Error(error.message);
+            } else {
+                // Otherwise, we're applying a new permanent ban.
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ is_banned: true, banned_until: null })
+                    .eq('id', userId);
+                if (error) throw new Error(error.message);
             }
         },
-        onSuccess: (_, { newBanStatus }) => {
-            const message = newBanStatus ? 'User has been permanently banned.' : 'User has been unbanned.';
+        onSuccess: (_, { isCurrentlyBanned }) => {
+            const message = isCurrentlyBanned ? 'User has been unbanned.' : 'User has been permanently banned.';
             toast.success(message);
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
@@ -113,7 +120,7 @@ const AdminPanel = () => {
 
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
-        toggleBan({ userId: user.id, newBanStatus: !user.is_banned });
+        toggleBan({ userId: user.id, isCurrentlyBanned: user.is_banned });
     };
 
     const handleOpenBadgeDialog = (user: Profile) => {
