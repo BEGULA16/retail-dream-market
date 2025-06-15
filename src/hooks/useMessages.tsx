@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
 
@@ -31,6 +31,7 @@ const fetchMessages = async (senderId: string, recipientId: string) => {
 export const useMessages = (recipientId: string) => {
   const { user } = useAuth();
   const senderId = user?.id;
+  const queryClient = useQueryClient();
 
   const { data: initialMessages, isLoading } = useQuery({
     queryKey: ['messages', senderId, recipientId],
@@ -49,12 +50,43 @@ export const useMessages = (recipientId: string) => {
   useEffect(() => {
     if (!senderId || !recipientId) return;
 
+    const markMessagesAsRead = async () => {
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('recipient_id', senderId)
+        .eq('sender_id', recipientId)
+        .eq('is_read', false);
+
+      if (error) {
+        console.error('Error marking messages as read:', error);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
+      }
+    };
+
+    markMessagesAsRead();
+  }, [senderId, recipientId, queryClient]);
+
+  useEffect(() => {
+    if (!senderId || !recipientId) return;
+
     const handleNewMessage = (payload: any) => {
         const newMessage = payload.new as Message;
         if (
             ((newMessage.sender_id === senderId && newMessage.recipient_id === recipientId) ||
             (newMessage.sender_id === recipientId && newMessage.recipient_id === senderId))
         ) {
+            if (newMessage.recipient_id === senderId && !newMessage.is_read) {
+                supabase.from('messages').update({ is_read: true }).eq('id', newMessage.id)
+                .then(({error}) => {
+                    if (error) {
+                        console.error("Failed to mark message as read", error);
+                    } else {
+                        queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
+                    }
+                });
+            }
             setMessages(prev => {
                 if (prev.some(m => m.id === newMessage.id)) {
                     return prev;
@@ -76,7 +108,7 @@ export const useMessages = (recipientId: string) => {
     return () => {
         supabase.removeChannel(channel);
     };
-  }, [senderId, recipientId]);
+  }, [senderId, recipientId, queryClient]);
 
   return { messages, isLoading, setMessages };
 };
