@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { DialogClose } from "./ui/dialog";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -41,6 +43,7 @@ const formSchema = z.object({
 });
 
 export function SellForm() {
+  const { user } = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -54,14 +57,38 @@ export function SellForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // For now, we just log the values.
-    // In the future, we'll send this to our Supabase backend.
-    console.log(values);
-    toast({
-      title: "Product Submitted!",
-      description: "Your product has been submitted for listing.",
-    });
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to sell an item.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.from("products").insert([
+      {
+        ...values,
+        price: parseFloat(values.price.replace('$', '')),
+        seller_id: user.id,
+      },
+    ]);
+
+    if (error) {
+      console.error("Error inserting product:", error);
+      toast({
+        title: "Error",
+        description: "There was an error listing your product. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Product Submitted!",
+        description: "Your product has been submitted for listing.",
+      });
+      form.reset();
+    }
   }
 
   return (
