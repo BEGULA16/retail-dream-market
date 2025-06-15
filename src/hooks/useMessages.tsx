@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -14,7 +13,7 @@ export interface Message {
   is_read: boolean;
 }
 
-const fetchMessages = async (senderId: string, recipientId: string) => {
+const fetchMessages = async (senderId: string, recipientId:string) => {
   const { data, error } = await supabase
     .from('messages')
     .select('*')
@@ -39,6 +38,7 @@ export const useMessages = (recipientId: string) => {
     queryKey,
     queryFn: () => fetchMessages(senderId!, recipientId),
     enabled: !!senderId && !!recipientId,
+    refetchInterval: 1000, // Refresh messages every second as requested.
   });
 
   useEffect(() => {
@@ -84,10 +84,9 @@ export const useMessages = (recipientId: string) => {
             },
             (payload) => {
                 console.log('New message received in conversation:', payload);
+                // Invalidate messages and unread counts for an instant update.
                 queryClient.invalidateQueries({ queryKey });
                 queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
-                queryClient.invalidateQueries({ queryKey: ['profiles'] });
-                queryClient.invalidateQueries({ queryKey: ['archivedConversations', senderId] });
             }
         )
         .on(
@@ -101,8 +100,6 @@ export const useMessages = (recipientId: string) => {
             (payload) => {
                 console.log('Message updated in conversation:', payload);
                 queryClient.invalidateQueries({ queryKey });
-                queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
-                queryClient.invalidateQueries({ queryKey: ['profiles'] });
             }
         )
         .subscribe();
