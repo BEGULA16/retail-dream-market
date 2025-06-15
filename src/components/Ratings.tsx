@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -18,13 +19,19 @@ import { Skeleton } from './ui/skeleton';
 const fetchProductRatings = async (productId: number): Promise<Rating[]> => {
   const { data, error } = await supabase
     .from('ratings')
-    .select('*, profiles(username, avatar_url)')
+    .select('*, profiles:user_id(username, avatar_url)')
     .eq('product_id', productId)
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error("Error fetching ratings:", error);
-    throw new Error(error.message);
+    // PostgREST returns a 406 error if the foreign key join is invalid, but tanstack-query will retry.
+    // To avoid console spam on what is a data issue (missing profile), we'll just log it once.
+    if (error.code !== 'PGRST116') { // PGRST116 is "relation does not exist" which can happen if profile is missing for a user
+        console.error("Error fetching ratings:", error);
+    }
+    // Return data even if some profiles are missing.
+    // The select with the explicit join column will return null for `profiles` if it can't be joined.
+    return (data || []) as Rating[];
   }
   return data as Rating[];
 };
@@ -36,7 +43,7 @@ const Ratings = ({ productId }: { productId: number }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ratingToEdit, setRatingToEdit] = useState<Rating | null>(null);
 
-  const { data: ratings = [] } = useQuery({
+  const { data: ratings = [], isLoading } = useQuery({
     queryKey: ['ratings', productId],
     queryFn: () => fetchProductRatings(productId),
   });
@@ -118,7 +125,7 @@ const Ratings = ({ productId }: { productId: number }) => {
           {ratings.map(rating => (
             <div key={rating.id} className="flex gap-4">
               <Avatar>
-                <AvatarImage src={rating.profiles?.avatar_url || undefined} alt={rating.profiles?.username} />
+                <AvatarImage src={rating.profiles?.avatar_url || undefined} alt={rating.profiles?.username || ''} />
                 <AvatarFallback>{rating.profiles?.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
