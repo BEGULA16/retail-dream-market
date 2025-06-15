@@ -15,16 +15,57 @@ import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Profile } from '@/types';
 import Fuse from 'fuse.js';
 
-const fetchProfiles = async (): Promise<Profile[]> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, username, avatar_url, badge');
+interface Conversation extends Profile {
+  lastMessageTimestamp: string;
+}
 
-  if (error) {
-    console.error('Error fetching profiles:', error);
-    throw new Error(error.message);
-  }
-  return (data as Profile[]) || [];
+const fetchConversations = async (userId: string): Promise<Conversation[]> => {
+    const { data: messages, error } = await supabase
+        .from('messages')
+        .select('sender_id, recipient_id, created_at')
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching messages for conversations:', error);
+        throw error;
+    }
+    
+    if (!messages || messages.length === 0) return [];
+
+    const conversationsMap = new Map<string, string>();
+    const partnerIdsSet = new Set<string>();
+
+    for (const msg of messages) {
+        const partnerId = msg.sender_id === userId ? msg.recipient_id : msg.sender_id;
+        if (partnerId !== userId && !conversationsMap.has(partnerId)) {
+            conversationsMap.set(partnerId, msg.created_at);
+            partnerIdsSet.add(partnerId);
+        }
+    }
+    
+    const partnerIds = Array.from(partnerIdsSet);
+
+    if (partnerIds.length === 0) return [];
+
+    const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, badge')
+        .in('id', partnerIds);
+        
+    if (profilesError) {
+        console.error('Error fetching profiles for conversations:', profilesError);
+        throw profilesError;
+    }
+
+    if (!profiles) return [];
+
+    const conversations: Conversation[] = profiles.map(p => ({
+        ...p,
+        lastMessageTimestamp: conversationsMap.get(p.id)!,
+    })).sort((a, b) => new Date(b.lastMessageTimestamp).getTime() - new Date(a.lastMessageTimestamp).getTime());
+    
+    return conversations;
 };
 
 const fetchArchivedConversations = async (userId: string) => {
@@ -55,9 +96,9 @@ const ChatList = () => {
     }
   }, [user, navigate]);
 
-  const { data: profiles, isLoading } = useQuery<Profile[]>({
-    queryKey: ['profiles'],
-    queryFn: fetchProfiles,
+  const { data: conversations, isLoading } = useQuery<Conversation[]>({
+    queryKey: ['conversations', user?.id],
+    queryFn: () => fetchConversations(user!.id),
     enabled: !!user,
   });
 
@@ -73,6 +114,8 @@ const ChatList = () => {
     if (!user) return;
 
     const handleNewMessage = async (payload: any) => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
+      
       const newMessage = payload.new as { recipient_id: string; sender_id: string; };
       const currentArchivedIds: string[] | undefined = queryClient.getQueryData(['archivedConversations', user.id]);
       
@@ -93,10 +136,10 @@ const ChatList = () => {
     };
 
     const channel = supabase
-      .channel(`realtime-chatlist-unarchive-${user.id}`)
+      .channel(`realtime-chatlist-updates-${user.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `or(sender_id.eq.${user.id},recipient_id.eq.${user.id})` },
         handleNewMessage
       )
       .subscribe();
@@ -139,14 +182,13 @@ const ChatList = () => {
       }
   };
 
-  const profilesToFilter = profiles?.filter(profile => {
-    const isArchived = archivedIds?.includes(profile.id);
-    const isNotCurrentUser = profile.id !== user?.id;
+  const profilesToFilter = conversations?.filter(conversation => {
+    const isArchived = archivedIds?.includes(conversation.id);
 
     if (showArchived) {
-      return isArchived && isNotCurrentUser;
+      return isArchived;
     }
-    return !isArchived && isNotCurrentUser;
+    return !isArchived;
   });
 
   const filteredProfiles = searchTerm.trim()
@@ -192,35 +234,35 @@ const ChatList = () => {
         <div className="flex-grow border rounded-lg p-4 overflow-y-auto">
           {isLoading && <p className="text-center text-muted-foreground">Loading users...</p>}
           <div className="space-y-2">
-            {filteredProfiles?.map(profile => (
-              <div key={profile.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted group">
-                <Link to={`/chat/${profile.id}`} className="flex-grow flex items-center gap-3">
+            {filteredProfiles?.map(conversation => (
+              <div key={conversation.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted group">
+                <Link to={`/chat/${conversation.id}`} className="flex-grow flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={profile.avatar_url ?? undefined} />
-                    <AvatarFallback>{profile.username?.[0].toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={conversation.avatar_url ?? undefined} />
+                    <AvatarFallback>{conversation.username?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{profile.username}</span>
-                    {profile.badge && <Badge variant="secondary">{profile.badge}</Badge>}
-                    {unreadCounts?.[profile.id] && !showArchived && (
-                        <Badge variant="destructive">{unreadCounts[profile.id]}</Badge>
+                    <span className="font-medium">{conversation.username}</span>
+                    {conversation.badge && <Badge variant="secondary">{conversation.badge}</Badge>}
+                    {unreadCounts?.[conversation.id] && !showArchived && (
+                        <Badge variant="destructive">{unreadCounts[conversation.id]}</Badge>
                     )}
                   </div>
                 </Link>
                 <div className="flex items-center">
                     {showArchived ? (
-                        <Button variant="ghost" size="icon" onClick={() => handleUnarchive(profile.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleUnarchive(conversation.id)}>
                             <ArchiveRestore className="h-5 w-5" />
                             <span className="sr-only">Unarchive</span>
                         </Button>
                     ) : (
-                        <Button variant="ghost" size="icon" onClick={() => handleArchive(profile.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleArchive(conversation.id)}>
                             <Archive className="h-5 w-5" />
                             <span className="sr-only">Archive</span>
                         </Button>
                     )}
                     <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/chat/${profile.id}`}>
+                      <Link to={`/chat/${conversation.id}`}>
                         <MessageSquare className="h-5 w-5" />
                       </Link>
                     </Button>
