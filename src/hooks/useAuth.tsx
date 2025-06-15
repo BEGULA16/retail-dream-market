@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   refreshAuth: () => Promise<void>;
+  isLoadingProfile: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   refreshAuth: () => Promise.resolve(),
+  isLoadingProfile: true,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -23,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const queryClient = useQueryClient();
 
   const fetchProfile = async (userId: string) => {
@@ -69,11 +72,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (user) {
+      setIsLoadingProfile(true);
       fetchProfile(user.id).then((profileData) => {
         setProfile(profileData);
+        setIsLoadingProfile(false);
       });
     } else {
       setProfile(null);
+      setIsLoadingProfile(false);
     }
   }, [user]);
 
@@ -125,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, refreshAuth }}>
+    <AuthContext.Provider value={{ session, user, profile, refreshAuth, isLoadingProfile }}>
       {!loading && children}
     </AuthContext.Provider>
   );

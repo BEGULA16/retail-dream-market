@@ -20,6 +20,7 @@ export interface Profile {
   badge?: string | null;
   is_banned?: boolean;
   banned_until?: string | null;
+  is_admin?: boolean;
 }
 
 export interface Rating {

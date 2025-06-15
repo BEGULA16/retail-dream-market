@@ -1,4 +1,3 @@
-
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -13,14 +12,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from '@/lib/supabase';
-import { LogOut, MessageSquare, User as UserIcon, Bell, BellRing, Store } from 'lucide-react';
+import { LogOut, MessageSquare, User as UserIcon, Bell, BellRing, Store, ShieldCheck } from 'lucide-react';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
 
 const Header = () => {
-  const { user, session } = useAuth();
+  const { user, session, profile } = useAuth();
   const navigate = useNavigate();
   const { totalUnreadCount } = useUnreadCounts();
   const { permission, requestNotificationPermission } = useNotifications();
@@ -87,6 +86,14 @@ const Header = () => {
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/profile"><UserIcon className="mr-2 h-4 w-4" />Profile</Link>
                   </DropdownMenuItem>
+                  {profile?.is_admin && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/admin-panel">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {user?.user_metadata?.is_seller && (
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link to="/seller-panel">

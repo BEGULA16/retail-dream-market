@@ -17,6 +17,7 @@ import SellerPanel from "./pages/SellerPanel";
 import UserProfile from "./pages/UserProfile";
 import AdminPanel from "./pages/AdminPanel";
 import UpdatePassword from "./pages/UpdatePassword";
+import AdminRoute from "./components/auth/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -43,7 +44,11 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/user/:userId" element={<UserProfile />} />
               <Route path="/seller-panel" element={<SellerPanel />} />
-              <Route path="/admin-panel" element={<AdminPanel />} />
+              
+              <Route element={<AdminRoute />}>
+                <Route path="/admin-panel" element={<AdminPanel />} />
+              </Route>
+              
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
