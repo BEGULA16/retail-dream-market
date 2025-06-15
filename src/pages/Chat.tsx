@@ -23,9 +23,10 @@ interface Message {
 }
 
 const fetchMessages = async (): Promise<Message[]> => {
+  // Switched to a simpler query that should resolve the relationship issue with Supabase.
   const { data, error } = await supabase
     .from('messages')
-    .select('*, profiles!user_id(username)')
+    .select('*, profiles(username)')
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -86,15 +87,36 @@ const Chat = () => {
     e.preventDefault();
     if (newMessage.trim() === '' || !user) return;
 
+    const content = newMessage.trim();
+    setNewMessage('');
+
+    // Optimistically update the message list for a faster user experience.
+    const tempId = -Math.floor(Math.random() * 1000000);
+    queryClient.setQueryData<Message[]>(['messages'], (oldData) => {
+        const optimisticMessage: Message = {
+            id: tempId,
+            created_at: new Date().toISOString(),
+            content: content,
+            user_id: user.id,
+            profiles: {
+                username: user.user_metadata.username || user.email?.split('@')[0] || 'User',
+            },
+        };
+        return oldData ? [...oldData, optimisticMessage] : [optimisticMessage];
+    });
+    
     const { error } = await supabase
       .from('messages')
-      .insert([{ content: newMessage.trim(), user_id: user.id }]);
+      .insert([{ content: content, user_id: user.id }]);
     
     if (error) {
       console.error('Error sending message:', error);
-    } else {
-      setNewMessage('');
+      // If sending fails, remove the optimistic message from the cache.
+      queryClient.setQueryData<Message[]>(['messages'], (oldData) => {
+        return oldData?.filter(m => m.id !== tempId);
+      });
     }
+    // The realtime subscription will trigger a refetch and update the list with the real message.
   };
 
   const handleLogout = async () => {
