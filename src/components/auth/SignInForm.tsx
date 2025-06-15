@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PasswordInput } from "./PasswordInput";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -28,6 +28,8 @@ const setLoginAttemptData = (data: any) => {
 export const SignInForm = () => {
   const [loading, setLoading] = useState(false);
   const [lockoutTimeLeft, setLockoutTimeLeft] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -68,6 +70,14 @@ export const SignInForm = () => {
   }, [emailValue]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!captchaToken) {
+      toast({
+        variant: "destructive",
+        title: "CAPTCHA required",
+        description: "Please complete the CAPTCHA challenge.",
+      });
+      return;
+    }
     setLoading(true);
 
     const attempts = getLoginAttemptData();
@@ -88,6 +98,9 @@ export const SignInForm = () => {
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
+      options: {
+        captchaToken,
+      },
     });
 
     if (error) {
@@ -114,12 +127,16 @@ export const SignInForm = () => {
 
       setLoginAttemptData({ ...attempts, [values.email]: updatedUserData });
       toast({ variant: "destructive", title: "Error signing in", description: toastDescription });
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
     } else {
       const attempts = getLoginAttemptData();
       delete attempts[values.email];
       setLoginAttemptData(attempts);
       setLockoutTimeLeft(0);
       toast({ title: "Signed in successfully!" });
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
       navigate('/');
     }
     
@@ -155,7 +172,14 @@ export const SignInForm = () => {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loading || lockoutTimeLeft > 0}>
+        <HCaptcha
+          sitekey="YOUR_HCAPTCHA_SITE_KEY"
+          onVerify={setCaptchaToken}
+          onError={() => toast({ variant: "destructive", title: "CAPTCHA error", description: "Something went wrong. Please try again."})}
+          onExpire={() => setCaptchaToken(null)}
+          ref={captchaRef}
+        />
+        <Button type="submit" className="w-full" disabled={loading || lockoutTimeLeft > 0 || !captchaToken}>
           {lockoutTimeLeft > 0 ? `Try again in ${lockoutTimeLeft}s` : loading ? 'Signing in...' : 'Sign In'}
         </Button>
       </form>

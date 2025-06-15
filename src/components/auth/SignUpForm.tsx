@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PasswordInput } from "./PasswordInput";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 const allowedDomains = ['proton.me', 'protonmail.com', 'gmail.com', 'yahoo.com', 'google.com'];
 
@@ -36,6 +37,8 @@ const checkUsernameExists = async (username: string) => {
 
 export const SignUpForm = () => {
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -48,6 +51,14 @@ export const SignUpForm = () => {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!captchaToken) {
+      toast({
+        variant: "destructive",
+        title: "CAPTCHA required",
+        description: "Please complete the CAPTCHA challenge.",
+      });
+      return;
+    }
     setLoading(true);
 
     const usernameExists = await checkUsernameExists(values.username);
@@ -67,14 +78,19 @@ export const SignUpForm = () => {
         data: {
           username: values.username,
         },
+        captchaToken,
       },
     });
 
     if (error) {
       toast({ variant: "destructive", title: "Error signing up", description: error.message });
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
     } else {
       toast({ title: "Success!", description: "Check your email for the confirmation link. Don't forget to check your spam folder!" });
       form.reset();
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
     }
     setLoading(false);
   };
@@ -121,7 +137,14 @@ export const SignUpForm = () => {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loading}>
+        <HCaptcha
+          sitekey="YOUR_HCAPTCHA_SITE_KEY"
+          onVerify={setCaptchaToken}
+          onError={() => toast({ variant: "destructive", title: "CAPTCHA error", description: "Something went wrong. Please try again."})}
+          onExpire={() => setCaptchaToken(null)}
+          ref={captchaRef}
+        />
+        <Button type="submit" className="w-full" disabled={loading || !captchaToken}>
           {loading ? 'Signing up...' : 'Sign Up'}
         </Button>
       </form>

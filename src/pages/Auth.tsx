@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,10 +19,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SignInForm } from '@/components/auth/SignInForm';
 import { SignUpForm } from '@/components/auth/SignUpForm';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
   const { toast } = useToast();
 
   const handlePasswordReset = async () => {
@@ -32,9 +36,19 @@ const Auth = () => {
       });
       return;
     }
+    if (!captchaToken) {
+      toast({
+        variant: "destructive",
+        title: "CAPTCHA required",
+        description: "Please complete the CAPTCHA challenge.",
+      });
+      return;
+    }
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      captchaToken,
+    });
 
     if (error) {
       console.error('Error sending password reset email:', error);
@@ -46,6 +60,8 @@ const Auth = () => {
       });
     }
     setLoading(false);
+    captchaRef.current?.resetCaptcha();
+    setCaptchaToken(null);
   };
 
   return (
@@ -83,9 +99,16 @@ const Auth = () => {
                         onChange={(e) => setResetEmail(e.target.value)}
                       />
                     </div>
+                    <HCaptcha
+                      sitekey="YOUR_HCAPTCHA_SITE_KEY"
+                      onVerify={setCaptchaToken}
+                      onError={() => toast({ variant: "destructive", title: "CAPTCHA error", description: "Something went wrong. Please try again."})}
+                      onExpire={() => setCaptchaToken(null)}
+                      ref={captchaRef}
+                    />
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handlePasswordReset} disabled={loading}>
+                      <AlertDialogAction onClick={handlePasswordReset} disabled={loading || !captchaToken}>
                         {loading ? 'Sending...' : 'Send Reset Link'}
                       </AlertDialogAction>
                     </AlertDialogFooter>
