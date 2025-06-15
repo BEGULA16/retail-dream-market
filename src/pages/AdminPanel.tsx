@@ -1,3 +1,4 @@
+
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -228,25 +229,27 @@ const AdminPanel = () => {
                                                         <UserCheck className="h-4 w-4" />
                                                     </Button>
                                                 ) : (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => permanentBan(user.id)}
-                                                        disabled={isBanningUser || isSelf}
-                                                        title={isSelf ? "You cannot modify your own status" : "Permanently Ban User"}
-                                                    >
-                                                        <Ban className="h-4 w-4" />
-                                                    </Button>
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => permanentBan(user.id)}
+                                                            disabled={isBanningUser || isSelf}
+                                                            title={isSelf ? "You cannot modify your own status" : "Permanently Ban User"}
+                                                        >
+                                                            <Ban className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button 
+                                                            variant="outline" 
+                                                            size="icon" 
+                                                            onClick={() => handleOpenRestrictDialog(user)}
+                                                            disabled={isSelf}
+                                                            title={isSelf ? "You cannot modify your own status" : "Temporarily Restrict User"}
+                                                        >
+                                                            <TimerOff className="h-4 w-4" />
+                                                        </Button>
+                                                    </>
                                                 )}
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="icon" 
-                                                    onClick={() => handleOpenRestrictDialog(user)}
-                                                    disabled={user.is_banned || isSelf}
-                                                    title={isSelf ? "You cannot modify your own status" : "Temporarily Restrict User"}
-                                                >
-                                                    <TimerOff className="h-4 w-4" />
-                                                </Button>
                                                 <Button 
                                                     variant="outline" 
                                                     size="icon" 

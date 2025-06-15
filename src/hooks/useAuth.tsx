@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -6,6 +7,7 @@ import { Profile } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { formatDistanceToNow } from 'date-fns';
 
 interface AuthContextType {
   session: Session | null;
@@ -188,9 +190,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
     
-    const handleLogout = async () => {
-      await supabase.auth.signOut();
-    };
+    // You can change the appeal link below to your desired URL.
+    const appealLink = 'https://google.com';
 
     if (isRestrictionActive) {
         return (
@@ -201,13 +202,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 <p className="mt-4 text-lg">You are restricted from accessing this service.</p>
                 {profile.banned_until ? (
                     <p className="mt-2 text-muted-foreground">
-                        Your restriction expires on: {new Date(profile.banned_until).toLocaleString()}
+                        Your restriction expires {formatDistanceToNow(new Date(profile.banned_until), { addSuffix: true })}.
                     </p>
                 ) : (
                     <p className="mt-2 text-muted-foreground">This ban is permanent.</p>
                 )}
-                 <Button onClick={handleLogout} variant="outline" className="mt-8">
-                  Sign Out
+                 <Button asChild className="mt-8">
+                  <a href={appealLink} target="_blank" rel="noopener noreferrer">
+                    Appeal
+                  </a>
                 </Button>
             </div>
         );
