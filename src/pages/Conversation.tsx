@@ -60,32 +60,6 @@ const Conversation = () => {
     const { messages, isLoading: messagesLoading } = useMessages(recipientId!);
 
     useEffect(() => {
-        const markMessagesAsRead = async () => {
-            if (!user || !recipientId) return;
-
-            const unreadFromRecipient = messages.some(m => m.sender_id === recipientId && !m.is_read);
-            if (!unreadFromRecipient) return;
-
-            const { error } = await supabase
-                .from('messages')
-                .update({ is_read: true })
-                .eq('recipient_id', user.id)
-                .eq('sender_id', recipientId)
-                .eq('is_read', false);
-
-            if (error) {
-                console.error("Error marking messages as read", error);
-            } else {
-                queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
-            }
-        };
-
-        if (messages.length > 0) {
-            markMessagesAsRead();
-        }
-    }, [messages, recipientId, user, queryClient]);
-
-    useEffect(() => {
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
         }
