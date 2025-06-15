@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,15 +51,16 @@ const AdminPanel = () => {
                 .update({ is_banned: true, banned_until: null })
                 .eq('id', userId);
             if (error) throw new Error(error.message);
+            return userId;
         },
-        onSuccess: () => {
+        onSuccess: (userId) => {
             toast.success('User has been permanently banned.');
+            queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) => 
+                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: true, banned_until: null } : user) : []
+            );
         },
         onError: (error: Error) => {
             toast.error(`Failed to ban user: ${error.message}`);
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
     });
 
@@ -71,38 +71,41 @@ const AdminPanel = () => {
                 .update({ is_banned: false, banned_until: null })
                 .eq('id', userId);
             if (error) throw new Error(error.message);
+            return userId;
         },
-        onSuccess: () => {
+        onSuccess: (userId) => {
             toast.success('User restriction has been removed.');
+            queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) => 
+                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: false, banned_until: null } : user) : []
+            );
         },
         onError: (error: Error) => {
             toast.error(`Failed to remove restriction: ${error.message}`);
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
     });
 
     const { mutate: updateBadge, isPending: isUpdatingBadge } = useMutation({
         mutationFn: async ({ userId, badge }: { userId: string, badge: string }) => {
+            const newBadge = badge || null;
             const { error } = await supabase
                 .from('profiles')
-                .update({ badge: badge || null }) // Send null if badge is empty to remove it
+                .update({ badge: newBadge })
                 .eq('id', userId);
             
             if (error) {
                 throw new Error(error.message);
             }
+            return { userId, badge: newBadge };
         },
-        onSuccess: () => {
+        onSuccess: ({ userId, badge }) => {
             toast.success("User's badge has been updated.");
             setIsBadgeDialogOpen(false);
+            queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) =>
+                oldData ? oldData.map(user => user.id === userId ? { ...user, badge } : user) : []
+            );
         },
         onError: (error: Error) => {
             toast.error(`Failed to update badge: ${error.message}`);
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
     });
 
@@ -113,24 +116,26 @@ const AdminPanel = () => {
             }
             const bannedUntil = new Date();
             bannedUntil.setHours(bannedUntil.getHours() + hours);
+            const bannedUntilISO = bannedUntil.toISOString();
     
             const { error } = await supabase
                 .from('profiles')
-                .update({ is_banned: true, banned_until: bannedUntil.toISOString() })
+                .update({ is_banned: true, banned_until: bannedUntilISO })
                 .eq('id', userId);
             
             if (error) { throw new Error(error.message); }
+            return { userId, banned_until: bannedUntilISO };
         },
-        onSuccess: () => {
+        onSuccess: ({ userId, banned_until }) => {
             toast.success("User has been restricted.");
             setIsRestrictDialogOpen(false);
             setRestrictionDuration('');
+            queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) =>
+                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: true, banned_until } : user) : []
+            );
         },
         onError: (error: Error) => {
             toast.error(`Failed to restrict user: ${error.message}`);
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
     });
 
