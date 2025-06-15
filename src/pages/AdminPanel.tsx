@@ -55,10 +55,12 @@ const AdminPanel = () => {
         },
         onSuccess: () => {
             toast.success('User has been permanently banned.');
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
         onError: (error: Error) => {
             toast.error(`Failed to ban user: ${error.message}`);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
     });
 
@@ -72,10 +74,12 @@ const AdminPanel = () => {
         },
         onSuccess: () => {
             toast.success('User restriction has been removed.');
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
         onError: (error: Error) => {
             toast.error(`Failed to remove restriction: ${error.message}`);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
     });
 
@@ -92,12 +96,14 @@ const AdminPanel = () => {
         },
         onSuccess: () => {
             toast.success("User's badge has been updated.");
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
             setIsBadgeDialogOpen(false);
         },
         onError: (error: Error) => {
             toast.error(`Failed to update badge: ${error.message}`);
-        }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+        },
     });
 
     const { mutate: restrictUser, isPending: isRestrictingUser } = useMutation({
@@ -117,13 +123,15 @@ const AdminPanel = () => {
         },
         onSuccess: () => {
             toast.success("User has been restricted.");
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
             setIsRestrictDialogOpen(false);
             setRestrictionDuration('');
         },
         onError: (error: Error) => {
             toast.error(`Failed to restrict user: ${error.message}`);
-        }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+        },
     });
 
     const handleOpenBadgeDialog = (user: Profile) => {
