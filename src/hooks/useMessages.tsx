@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +10,7 @@ export interface Message {
   recipient_id: string;
   content: string | null;
   image_url: string | null;
+  is_read: boolean;
 }
 
 const fetchMessages = async (senderId: string, recipientId: string) => {
@@ -41,7 +41,7 @@ export const useMessages = (recipientId: string) => {
 
   useEffect(() => {
     if (initialMessages) {
-      setMessages(initialMessages);
+      setMessages(initialMessages as Message[]);
     }
   }, [initialMessages]);
 

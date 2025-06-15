@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +10,7 @@ import { ArrowLeft, MessageSquare, Archive } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface Profile {
   id: string;
@@ -44,6 +44,26 @@ const fetchArchivedConversations = async (userId: string) => {
     return data.map(item => item.archived_user_id);
 };
 
+const fetchUnreadCounts = async (userId: string): Promise<Record<string, number>> => {
+    const { data, error } = await supabase
+        .from('messages')
+        .select('sender_id')
+        .eq('recipient_id', userId)
+        .eq('is_read', false);
+
+    if (error) {
+        console.error('Error fetching unread counts', error);
+        throw error;
+    }
+
+    const counts = data.reduce((acc, msg) => {
+        acc[msg.sender_id] = (acc[msg.sender_id] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    return counts;
+};
+
 const ChatList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
@@ -68,6 +88,51 @@ const ChatList = () => {
       queryFn: () => fetchArchivedConversations(user!.id),
       enabled: !!user,
   });
+
+  const { data: unreadCounts } = useQuery({
+      queryKey: ['unreadCounts', user?.id],
+      queryFn: () => fetchUnreadCounts(user!.id),
+      enabled: !!user,
+  });
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleNewMessage = async (payload: any) => {
+      const newMessage = payload.new as { recipient_id: string; sender_id: string; };
+      
+      if (newMessage.recipient_id === user.id) {
+        if (archivedIds?.includes(newMessage.sender_id)) {
+          const { error } = await supabase
+            .from('archived_conversations')
+            .delete()
+            .match({ user_id: user.id, archived_user_id: newMessage.sender_id });
+
+          if (!error) {
+            toast({
+              title: "Message from archived chat",
+              description: "The conversation has been moved to your inbox.",
+            });
+            queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
+      }
+    };
+
+    const channel = supabase
+      .channel('realtime-chatlist')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        handleNewMessage
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, archivedIds, queryClient, toast]);
 
   const handleArchive = async (profileId: string) => {
       if (!user) return;
@@ -128,7 +193,12 @@ const ChatList = () => {
                     <AvatarImage src={profile.avatar_url ?? undefined} />
                     <AvatarFallback>{profile.username?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <span className="font-medium">{profile.username}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{profile.username}</span>
+                    {unreadCounts?.[profile.id] && (
+                        <Badge variant="destructive">{unreadCounts[profile.id]}</Badge>
+                    )}
+                  </div>
                 </Link>
                 <div className="flex items-center">
                     <Button variant="ghost" size="icon" onClick={() => handleArchive(profile.id)}>
