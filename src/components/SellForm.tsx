@@ -57,7 +57,7 @@ const formSchema = z.object({
   }),
 });
 
-export function SellForm() {
+export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -174,6 +174,7 @@ export function SellForm() {
       });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       form.reset();
+      onFormSubmit();
     }
   }
 

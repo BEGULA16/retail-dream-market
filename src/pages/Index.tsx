@@ -52,6 +52,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("default");
   const { totalUnreadCount } = useUnreadCounts();
+  const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
 
   const { data: products = [], isLoading, isError } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -148,7 +149,7 @@ const Index = () => {
               Our Products
             </h1>
             <div className="flex items-center gap-4">
-              <Dialog>
+              <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
                 <DialogTrigger asChild>
                   <Button>
                     <Store className="mr-2 h-4 w-4" /> Sell Item
@@ -161,7 +162,7 @@ const Index = () => {
                       Fill out the details below to list your item on the marketplace.
                     </DialogDescription>
                   </DialogHeader>
-                  <SellForm />
+                  <SellForm onFormSubmit={() => setIsSellDialogOpen(false)} />
                 </DialogContent>
               </Dialog>
 
