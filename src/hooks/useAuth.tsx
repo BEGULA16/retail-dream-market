@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Profile } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 interface AuthContextType {
   session: Session | null;
@@ -186,16 +187,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
+    
+    const handleLogout = async () => {
+      await supabase.auth.signOut();
+    };
+
     if (isRestrictionActive) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
-                <h1 className="text-4xl font-bold text-destructive">You are Banned</h1>
+                <h1 className="text-4xl font-bold text-destructive">
+                  {profile.banned_until ? 'Account Restricted' : 'Account Banned'}
+                </h1>
                 <p className="mt-4 text-lg">You are restricted from accessing this service.</p>
-                {profile.banned_until && (
+                {profile.banned_until ? (
                     <p className="mt-2 text-muted-foreground">
-                        Your ban expires on: {new Date(profile.banned_until).toLocaleString()}
+                        Your restriction expires on: {new Date(profile.banned_until).toLocaleString()}
                     </p>
+                ) : (
+                    <p className="mt-2 text-muted-foreground">This ban is permanent.</p>
                 )}
+                 <Button onClick={handleLogout} variant="outline" className="mt-8">
+                  Sign Out
+                </Button>
             </div>
         );
     }

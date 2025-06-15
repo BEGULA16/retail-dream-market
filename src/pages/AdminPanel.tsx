@@ -1,8 +1,7 @@
-
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff } from 'lucide-react';
+import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff, UserCheck } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -224,9 +223,9 @@ const AdminPanel = () => {
                                                         size="icon"
                                                         onClick={() => unbanUser(user.id)}
                                                         disabled={isUnbanningUser || isSelf}
-                                                        title={isSelf ? "You cannot modify your own status" : "Remove Restriction"}
+                                                        title={isSelf ? "You cannot modify your own status" : "Unban User"}
                                                     >
-                                                        <User className="h-4 w-4" />
+                                                        <UserCheck className="h-4 w-4" />
                                                     </Button>
                                                 ) : (
                                                     <Button
