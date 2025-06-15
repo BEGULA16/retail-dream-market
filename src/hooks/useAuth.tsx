@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const queryClient = useQueryClient();
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -40,9 +41,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
     }
     return data as Profile | null;
-  };
+  }, []);
 
-  const refreshAuth = async () => {
+  const refreshAuth = useCallback(async () => {
     const { data: { session: newSession } } = await supabase.auth.getSession();
     setSession(newSession);
     const authUser = newSession?.user ?? null;
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
         setProfile(null);
     }
-  };
+  }, [fetchProfile]);
 
   useEffect(() => {
     setLoading(true);
@@ -81,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(null);
       setIsLoadingProfile(false);
     }
-  }, [user]);
+  }, [user, fetchProfile]);
 
   // Auto-unban logic for expired temporary bans
   useEffect(() => {
@@ -92,7 +93,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       unbanUser();
     }
-  }, [profile]);
+  }, [profile, refreshAuth]);
+
+  const memoizedValue = useMemo(() => ({
+    session,
+    user,
+    profile,
+    refreshAuth,
+    isLoadingProfile,
+  }), [session, user, profile, refreshAuth, isLoadingProfile]);
 
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
@@ -112,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, refreshAuth, isLoadingProfile }}>
+    <AuthContext.Provider value={memoizedValue}>
       {!loading && children}
     </AuthContext.Provider>
   );
