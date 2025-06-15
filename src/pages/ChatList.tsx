@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -87,7 +86,6 @@ const ChatList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const { user } = useAuth();
-  const userId = user?.id;
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -99,49 +97,49 @@ const ChatList = () => {
   }, [user, navigate]);
 
   const { data: conversations, isLoading } = useQuery<Conversation[]>({
-    queryKey: ['conversations', userId],
-    queryFn: () => fetchConversations(userId!),
-    enabled: !!userId,
+    queryKey: ['conversations', user?.id],
+    queryFn: () => fetchConversations(user!.id),
+    enabled: !!user,
   });
 
   const { data: archivedIds } = useQuery({
-      queryKey: ['archivedConversations', userId],
-      queryFn: () => fetchArchivedConversations(userId!),
-      enabled: !!userId,
+      queryKey: ['archivedConversations', user?.id],
+      queryFn: () => fetchArchivedConversations(user!.id),
+      enabled: !!user,
   });
 
   const { unreadCounts } = useUnreadCounts();
 
   useEffect(() => {
-    if (!userId) return;
+    if (!user) return;
 
     const handleNewMessage = async (payload: any) => {
-      queryClient.invalidateQueries({ queryKey: ['conversations', userId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
       
       const newMessage = payload.new as { recipient_id: string; sender_id: string; };
-      const currentArchivedIds: string[] | undefined = queryClient.getQueryData(['archivedConversations', userId]);
+      const currentArchivedIds: string[] | undefined = queryClient.getQueryData(['archivedConversations', user.id]);
       
-      if (newMessage.recipient_id === userId && currentArchivedIds?.includes(newMessage.sender_id)) {
+      if (newMessage.recipient_id === user.id && currentArchivedIds?.includes(newMessage.sender_id)) {
         const { error } = await supabase
           .from('archived_conversations')
           .delete()
-          .match({ user_id: userId, archived_user_id: newMessage.sender_id });
+          .match({ user_id: user.id, archived_user_id: newMessage.sender_id });
 
         if (!error) {
           toast({
             title: "Message from archived chat",
             description: "The conversation has been moved to your inbox.",
           });
-          queryClient.invalidateQueries({ queryKey: ['archivedConversations', userId] });
+          queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
         }
       }
     };
 
     const channel = supabase
-      .channel(`realtime-chatlist-updates-${userId}`)
+      .channel(`realtime-chatlist-updates-${user.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `or(sender_id.eq.${userId},recipient_id.eq.${userId})` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `or(sender_id.eq.${user.id},recipient_id.eq.${user.id})` },
         handleNewMessage
       )
       .subscribe();
@@ -149,36 +147,36 @@ const ChatList = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, queryClient, toast]);
+  }, [user, queryClient, toast]);
 
   const handleArchive = async (profileId: string) => {
-      if (!userId) return;
+      if (!user) return;
       try {
           const { error } = await supabase
               .from('archived_conversations')
-              .insert({ user_id: userId, archived_user_id: profileId });
+              .insert({ user_id: user.id, archived_user_id: profileId });
 
           if (error) throw error;
 
           toast({ title: 'Conversation archived.' });
-          queryClient.invalidateQueries({ queryKey: ['archivedConversations', userId] });
+          queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
       } catch (error: any) {
           toast({ variant: 'destructive', title: 'Error archiving conversation', description: error.message });
       }
   };
 
   const handleUnarchive = async (profileId: string) => {
-      if (!userId) return;
+      if (!user) return;
       try {
           const { error } = await supabase
               .from('archived_conversations')
               .delete()
-              .match({ user_id: userId, archived_user_id: profileId });
+              .match({ user_id: user.id, archived_user_id: profileId });
 
           if (error) throw error;
 
           toast({ title: 'Conversation unarchived.' });
-          queryClient.invalidateQueries({ queryKey: ['archivedConversations', userId] });
+          queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
       } catch (error: any) {
           toast({ variant: 'destructive', title: 'Error unarchiving conversation', description: error.message });
       }

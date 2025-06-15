@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,7 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const queryClient = useQueryClient();
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -41,9 +40,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
     }
     return data as Profile | null;
-  }, []);
+  };
 
-  const refreshAuth = useCallback(async () => {
+  const refreshAuth = async () => {
     const { data: { session: newSession } } = await supabase.auth.getSession();
     setSession(newSession);
     const authUser = newSession?.user ?? null;
@@ -54,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
         setProfile(null);
     }
-  }, [fetchProfile]);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -82,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(null);
       setIsLoadingProfile(false);
     }
-  }, [user, fetchProfile]);
+  }, [user]);
 
   // Auto-unban logic for expired temporary bans
   useEffect(() => {
@@ -93,15 +92,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       unbanUser();
     }
-  }, [profile, refreshAuth]);
+  }, [profile]);
 
-  const memoizedValue = useMemo(() => ({
-    session,
-    user,
-    profile,
-    refreshAuth,
-    isLoadingProfile,
-  }), [session, user, profile, refreshAuth, isLoadingProfile]);
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`realtime-unread-counts-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
@@ -121,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={memoizedValue}>
+    <AuthContext.Provider value={{ session, user, profile, refreshAuth, isLoadingProfile }}>
       {!loading && children}
     </AuthContext.Provider>
   );

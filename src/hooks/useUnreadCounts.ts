@@ -31,34 +31,33 @@ const fetchUnreadCounts = async (userId: string): Promise<Record<string, number>
 
 export const useUnreadCounts = () => {
     const { user } = useAuth();
-    const userId = user?.id;
     const { permission, sendNotification } = useNotifications();
     const prevTotalUnreadCount = useRef<number>();
     const queryClient = useQueryClient();
 
-    const queryKey = ['unreadCounts', userId];
+    const queryKey = ['unreadCounts', user?.id];
     const { data: unreadCounts, ...queryResult } = useQuery({
         queryKey,
-        queryFn: () => fetchUnreadCounts(userId!),
-        enabled: !!userId,
+        queryFn: () => fetchUnreadCounts(user!.id),
+        enabled: !!user,
     });
 
     useEffect(() => {
-        if (!userId) return;
+        if (!user) return;
 
         const handleMessageChange = () => {
-            queryClient.invalidateQueries({ queryKey: ['unreadCounts', userId] });
+            queryClient.invalidateQueries({ queryKey });
         };
 
         const channel = supabase
-            .channel(`realtime-unread-counts-${userId}`)
+            .channel(`realtime-unread-counts-${user.id}`)
             .on(
                 'postgres_changes',
                 {
                     event: '*',
                     schema: 'public',
                     table: 'messages',
-                    filter: `recipient_id=eq.${userId}`,
+                    filter: `recipient_id=eq.${user.id}`,
                 },
                 handleMessageChange
             )
@@ -67,7 +66,7 @@ export const useUnreadCounts = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId, queryClient]);
+    }, [user, queryClient, queryKey]);
 
     const totalUnreadCount = unreadCounts ? Object.values(unreadCounts).reduce((sum, count) => sum + count, 0) : 0;
 
