@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -23,7 +24,7 @@ const Auth = () => {
       toast({ variant: "destructive", title: "Error signing in", description: error.message });
     } else {
       toast({ title: "Signed in successfully!" });
-      navigate('/chat');
+      navigate('/');
     }
     setLoading(false);
   };
@@ -31,7 +32,15 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: username,
+        },
+      },
+    });
     if (error) {
       toast({ variant: "destructive", title: "Error signing up", description: error.message });
     } else {
@@ -70,6 +79,13 @@ const Auth = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSignup} className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
                 <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Signing up...' : 'Sign Up'}</Button>
