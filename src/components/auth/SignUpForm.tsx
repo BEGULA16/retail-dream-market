@@ -138,7 +138,7 @@ export const SignUpForm = () => {
           )}
         />
         <HCaptcha
-          sitekey="YOUR_HCAPTCHA_SITE_KEY"
+          sitekey="10beb640-01e0-47e6-b302-a86e3e90d028"
           onVerify={setCaptchaToken}
           onError={() => toast({ variant: "destructive", title: "CAPTCHA error", description: "Something went wrong. Please try again."})}
           onExpire={() => setCaptchaToken(null)}
