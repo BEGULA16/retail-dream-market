@@ -72,28 +72,32 @@ const ChatList = () => {
   useEffect(() => {
     if (!user) return;
 
-    const handleNewMessage = async (payload: any) => {
+    const handleNewMessage = (payload: any) => {
+      // Always invalidate unread counts on a new message
+      queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
+
       const newMessage = payload.new as { recipient_id: string; sender_id: string; };
       const currentArchivedIds: string[] | undefined = queryClient.getQueryData(['archivedConversations', user.id]);
       
       if (newMessage.recipient_id === user.id && currentArchivedIds?.includes(newMessage.sender_id)) {
-        const { error } = await supabase
+        supabase
           .from('archived_conversations')
           .delete()
-          .match({ user_id: user.id, archived_user_id: newMessage.sender_id });
-
-        if (!error) {
-          toast({
-            title: "Message from archived chat",
-            description: "The conversation has been moved to your inbox.",
+          .match({ user_id: user.id, archived_user_id: newMessage.sender_id })
+          .then(({ error }) => {
+            if (!error) {
+              toast({
+                title: "Message from archived chat",
+                description: "The conversation has been moved to your inbox.",
+              });
+              queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
+            }
           });
-          queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
-        }
       }
     };
 
     const channel = supabase
-      .channel(`realtime-chatlist-unarchive-${user.id}`)
+      .channel(`realtime-chatlist-updates-${user.id}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },

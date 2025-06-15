@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -59,9 +60,10 @@ const Conversation = () => {
     
     const { messages, isLoading: messagesLoading } = useMessages(recipientId!);
 
-    useEffect(() => {
-        if (scrollAreaRef.current) {
-            scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+    useLayoutEffect(() => {
+        const viewport = scrollAreaRef.current?.firstElementChild;
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
         }
     }, [messages]);
 
