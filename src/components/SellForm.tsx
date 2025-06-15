@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -20,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { IMGBB_API_KEY } from "@/config";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -85,6 +87,16 @@ export function SellForm() {
     }
     setIsSubmitting(true);
 
+    if (IMGBB_API_KEY === "YOUR_API_KEY_HERE") {
+        toast({
+            title: "Configuration Needed",
+            description: "Please provide an ImgBB API key in src/config.ts to upload images.",
+            variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+    }
+
     if (user.email !== 'damiankehnan@proton.me') {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { data: recentProducts, error: recentError } = await supabase
@@ -121,20 +133,27 @@ export function SellForm() {
     const files = values.images as FileList;
     const uploadedImageUrls = [];
     for (const file of Array.from(files)) {
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
+      const formData = new FormData();
+      formData.append('image', file);
 
-      if (uploadError) {
-        console.error("Error uploading image:", uploadError);
-        toast({ title: "Image Upload Error", description: `Failed to upload ${file.name}. Please try again.`, variant: "destructive" });
-        setIsSubmitting(false);
-        return;
+      try {
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            method: 'POST',
+            body: formData,
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.data || !result.data.url) {
+            console.error('ImgBB upload failed:', result);
+            throw new Error(result.error?.message || 'Failed to upload image to ImgBB');
+        }
+        uploadedImageUrls.push(result.data.url);
+      } catch (uploadError) {
+          console.error("Error uploading image:", uploadError);
+          toast({ title: "Image Upload Error", description: `Failed to upload ${file.name}. Please try again.`, variant: "destructive" });
+          setIsSubmitting(false);
+          return;
       }
-      
-      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
-      uploadedImageUrls.push(publicUrl);
     }
     const imageUrlsString = uploadedImageUrls.join(',');
 
@@ -227,17 +246,19 @@ export function SellForm() {
         <FormField
           control={form.control}
           name="images"
-          render={({ field: { onChange, ...fieldProps } }) => (
+          render={({ field: { value, onChange, ...fieldProps } }) => (
             <FormItem>
               <FormLabel>Product Images (up to 5)</FormLabel>
               <FormControl>
-                <Input 
-                  type="file" 
+                <Input
+                  {...fieldProps}
+                  type="file"
                   multiple
                   accept="image/png, image/jpeg, image/jpg, image/webp"
-                  onChange={(e) => onChange(e.target.files)}
-                  {...fieldProps}
-                 />
+                  onChange={(event) => {
+                    onChange(event.target.files);
+                  }}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
