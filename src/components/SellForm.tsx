@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -53,8 +54,8 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
         "At least one image is required."
       )
       .refine(
-        (files) => !files || files.length === 0 || files.length <= 5,
-        "You can upload a maximum of 5 images."
+        (files) => !files || files.length === 0 || files.length <= 6,
+        "You can upload a maximum of 6 images (1 main + 5 additional)."
       )
       .refine(
         (files) => !files || files.length === 0 || Array.from(files).every((file: any) => file.size <= MAX_FILE_SIZE),
@@ -301,7 +302,7 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
           name="images"
           render={({ field: { value, onChange, ...fieldProps } }) => (
             <FormItem>
-              <FormLabel>Product Images (up to 5)</FormLabel>
+              <FormLabel>Product Images (up to 6)</FormLabel>
               <FormControl>
                 <Input
                   {...fieldProps}
@@ -358,3 +359,4 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
 }
 
 export default SellForm;
+
