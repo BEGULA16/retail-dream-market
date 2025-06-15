@@ -51,7 +51,7 @@ export const useUnreadCounts = () => {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
                 (payload) => {
-                    queryClient.invalidateQueries({ queryKey });
+                    queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
                 }
             )
             .subscribe();
@@ -59,7 +59,7 @@ export const useUnreadCounts = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user, queryClient, queryKey]);
+    }, [user, queryClient]);
 
     const totalUnreadCount = unreadCounts ? Object.values(unreadCounts).reduce((sum, count) => sum + count, 0) : 0;
 

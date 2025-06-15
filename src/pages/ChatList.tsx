@@ -74,12 +74,13 @@ const ChatList = () => {
   const { unreadCounts } = useUnreadCounts();
 
   useEffect(() => {
-    if (!user || !archivedIds) return;
+    if (!user) return;
 
     const handleNewMessage = async (payload: any) => {
       const newMessage = payload.new as { recipient_id: string; sender_id: string; };
+      const currentArchivedIds: string[] | undefined = queryClient.getQueryData(['archivedConversations', user.id]);
       
-      if (newMessage.recipient_id === user.id && archivedIds.includes(newMessage.sender_id)) {
+      if (newMessage.recipient_id === user.id && currentArchivedIds?.includes(newMessage.sender_id)) {
         const { error } = await supabase
           .from('archived_conversations')
           .delete()
@@ -96,7 +97,7 @@ const ChatList = () => {
     };
 
     const channel = supabase
-      .channel('realtime-chatlist-unarchive')
+      .channel(`realtime-chatlist-unarchive-${user.id}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
@@ -107,7 +108,7 @@ const ChatList = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, archivedIds, queryClient, toast]);
+  }, [user, queryClient, toast]);
 
   const handleArchive = async (profileId: string) => {
       if (!user) return;

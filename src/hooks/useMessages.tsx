@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -52,10 +53,14 @@ export const useMessages = (recipientId: string) => {
         const newMessage = payload.new as Message;
         if (
             ((newMessage.sender_id === senderId && newMessage.recipient_id === recipientId) ||
-            (newMessage.sender_id === recipientId && newMessage.recipient_id === senderId)) &&
-            !messages.some(m => m.id === newMessage.id)
+            (newMessage.sender_id === recipientId && newMessage.recipient_id === senderId))
         ) {
-            setMessages(prev => [...prev, newMessage]);
+            setMessages(prev => {
+                if (prev.some(m => m.id === newMessage.id)) {
+                    return prev;
+                }
+                return [...prev, newMessage];
+            });
         }
     };
 
@@ -71,7 +76,7 @@ export const useMessages = (recipientId: string) => {
     return () => {
         supabase.removeChannel(channel);
     };
-  }, [senderId, recipientId, messages]);
+  }, [senderId, recipientId]);
 
   return { messages, isLoading, setMessages };
 };
