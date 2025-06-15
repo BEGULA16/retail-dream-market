@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff, ShieldAlert, Shield } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,10 +18,9 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 
 const fetchUsers = async (): Promise<Profile[]> => {
-    // We are now fetching created_at, badge, and banned_until as well.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until');
+        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until, is_admin');
     
     if (error) {
         console.error("Error fetching users:", error);
@@ -55,7 +54,6 @@ const AdminPanel = () => {
 
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
         mutationFn: async ({ userId, isCurrentlyBanned }: { userId: string, isCurrentlyBanned: boolean }) => {
-            // If the user is currently banned (in any state), we unban them.
             if (isCurrentlyBanned) {
                 const { error } = await supabase
                     .from('profiles')
@@ -63,7 +61,6 @@ const AdminPanel = () => {
                     .eq('id', userId);
                 if (error) throw new Error(error.message);
             } else {
-                // Otherwise, we're applying a new permanent ban.
                 const { error } = await supabase
                     .from('profiles')
                     .update({ is_banned: true, banned_until: null })
@@ -128,6 +125,28 @@ const AdminPanel = () => {
         }
     });
 
+    const { mutate: toggleAdmin, isPending: isTogglingAdmin } = useMutation({
+        mutationFn: async ({ userId, isCurrentlyAdmin }: { userId: string, isCurrentlyAdmin: boolean }) => {
+            if (userId === profile?.id) {
+                throw new Error("You cannot remove your own admin rights.");
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_admin: !isCurrentlyAdmin })
+                .eq('id', userId);
+            
+            if (error) { throw new Error(error.message); }
+        },
+        onSuccess: (_, { isCurrentlyAdmin }) => {
+            toast.success(isCurrentlyAdmin ? "Admin rights revoked." : "Admin rights granted.");
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+        },
+        onError: (error: Error) => {
+            toast.error(`Failed to update admin status: ${error.message}`);
+        }
+    });
+
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
         toggleBan({ userId: user.id, isCurrentlyBanned: !!user.is_banned });
@@ -160,6 +179,11 @@ const AdminPanel = () => {
         restrictUser({ userId: selectedUser.id, hours });
     };
     
+    const handleToggleAdmin = (user: Profile) => {
+        if (!user.id) return;
+        toggleAdmin({ userId: user.id, isCurrentlyAdmin: !!user.is_admin });
+    };
+
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
 
     if (!profile) {
@@ -237,6 +261,7 @@ const AdminPanel = () => {
                                                 <div className="flex flex-col items-start gap-1">
                                                     <span className={`font-medium ${user.is_banned ? 'line-through' : ''}`}>{user.username}</span>
                                                     <div className="flex items-center gap-2">
+                                                        {user.is_admin && <Badge>Admin</Badge>}
                                                         {user.badge && <Badge variant="secondary">{user.badge}</Badge>}
                                                         {user.is_banned && (
                                                             <Badge variant="destructive">
@@ -267,7 +292,7 @@ const AdminPanel = () => {
                                                     variant="outline" 
                                                     size="icon" 
                                                     onClick={() => handleOpenRestrictDialog(user)}
-                                                    disabled={user.is_banned}
+                                                    disabled={!!user.is_banned}
                                                     title="Temporarily Ban User"
                                                 >
                                                     <TimerOff className="h-4 w-4" />
@@ -279,6 +304,15 @@ const AdminPanel = () => {
                                                     title="Edit User Badge"
                                                 >
                                                     <BadgeIcon className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => handleToggleAdmin(user)}
+                                                    disabled={isTogglingAdmin || user.id === profile?.id}
+                                                    title={user.is_admin ? "Revoke Admin" : "Grant Admin"}
+                                                >
+                                                    <Shield className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </TableCell>
