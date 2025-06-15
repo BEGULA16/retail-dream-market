@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -133,7 +134,6 @@ const Profile = () => {
     setAdminClickCount(newCount);
 
     if (newCount >= 20) { // 10 clicks on trigger, 10 on cancel
-        toast({ title: "Sequence complete!", description: "Please wait..." });
         setAdminSequenceCompleted(true);
         setSequenceStartTime(null);
         setAdminClickCount(0);
