@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -13,11 +14,12 @@ import MessageBubble from '@/components/MessageBubble';
 import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 const fetchRecipientProfile = async (recipient_id: string) => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url')
+        .select('id, username, avatar_url, badge')
         .eq('id', recipient_id)
         .single();
     
@@ -163,7 +165,10 @@ const Conversation = () => {
                         </Link>
                     </Button>
                     <div className="flex items-center gap-3">
-                        <span className="font-bold text-lg">{profileLoading ? '...' : recipientProfile?.username}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg">{profileLoading ? '...' : recipientProfile?.username}</span>
+                            {!profileLoading && recipientProfile?.badge && <Badge variant="secondary">{recipientProfile.badge}</Badge>}
+                        </div>
                         <Avatar>
                             <AvatarImage src={recipientProfile?.avatar_url ?? undefined} />
                             <AvatarFallback>{recipientProfile?.username?.[0].toUpperCase()}</AvatarFallback>

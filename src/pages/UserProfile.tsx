@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -12,11 +13,12 @@ import NotFound from './NotFound';
 import SellerRatings from '@/components/SellerRatings';
 import SellerProducts from '@/components/SellerProducts';
 import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
 
 const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, avatar_url')
+    .select('id, username, avatar_url, badge')
     .eq('id', userId)
     .single();
 
@@ -135,7 +137,10 @@ const UserProfile = () => {
             <AvatarImage src={profile.avatar_url || undefined} alt={profile.username} />
             <AvatarFallback>{profile.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
           </Avatar>
-          <h1 className="text-3xl font-bold">{profile.username}</h1>
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-3xl font-bold">{profile.username}</h1>
+            {profile.badge && <Badge variant="secondary">{profile.badge}</Badge>}
+          </div>
           {user && user.id !== profile.id && (
             <Button onClick={() => navigate(`/chat/${profile.id}`)} className="mt-4">
               <MessageCircle className="mr-2 h-4 w-4" /> Chat with seller

@@ -12,23 +12,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
-
-interface Profile {
-  id: string;
-  username: string;
-  avatar_url: string | null;
-}
+import { Profile } from '@/types';
 
 const fetchProfiles = async (): Promise<Profile[]> => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, avatar_url');
+    .select('id, username, avatar_url, badge');
 
   if (error) {
     console.error('Error fetching profiles:', error);
     throw new Error(error.message);
   }
-  return data || [];
+  return (data as Profile[]) || [];
 };
 
 const fetchArchivedConversations = async (userId: string) => {
@@ -199,6 +194,7 @@ const ChatList = () => {
                   </Avatar>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{profile.username}</span>
+                    {profile.badge && <Badge variant="secondary">{profile.badge}</Badge>}
                     {unreadCounts?.[profile.id] && !showArchived && (
                         <Badge variant="destructive">{unreadCounts[profile.id]}</Badge>
                     )}
