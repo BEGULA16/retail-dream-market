@@ -117,7 +117,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           table: 'profiles',
           filter: `id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
+          console.log('Received profile update via realtime. Payload:', payload);
+          toast({
+            title: 'Your account status has been updated.',
+            description: 'Please wait while we refresh your session.',
+          });
           refreshAuth();
         }
       )
@@ -126,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       supabase.removeChannel(profileChannel);
     };
-  }, [user, refreshAuth]);
+  }, [user, refreshAuth, toast]);
 
   // Global message handler for real-time updates
   useEffect(() => {
