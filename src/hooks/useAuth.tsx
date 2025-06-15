@@ -97,6 +97,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user) return;
 
+    const profileChannel = supabase
+      .channel(`realtime-profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          refreshAuth();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
     const channel = supabase
       .channel(`realtime-unread-counts-${user.id}`)
       .on(
