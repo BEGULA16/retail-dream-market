@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { DialogClose } from "./ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -284,11 +283,9 @@ export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
             </FormItem>
           )}
         />
-        <DialogClose asChild>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit for Listing"}
-          </Button>
-        </DialogClose>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "Submit for Listing"}
+        </Button>
       </form>
     </Form>
   );
