@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -37,7 +36,7 @@ const Ratings = ({ productId }: { productId: number }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ratingToEdit, setRatingToEdit] = useState<Rating | null>(null);
 
-  const { data: ratings = [], isLoading } = useQuery({
+  const { data: ratings = [] } = useQuery({
     queryKey: ['ratings', productId],
     queryFn: () => fetchProductRatings(productId),
   });
@@ -72,7 +71,7 @@ const Ratings = ({ productId }: { productId: number }) => {
     setIsFormOpen(false);
     setRatingToEdit(null);
   }
-  
+
   if (isLoading) {
       return (
           <div className="mt-12">
@@ -176,4 +175,3 @@ const Ratings = ({ productId }: { productId: number }) => {
 };
 
 export default Ratings;
-
