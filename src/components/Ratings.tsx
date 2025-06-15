@@ -10,11 +10,13 @@ import { RatingForm } from './RatingForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Star, Edit, Trash2, MessageSquarePlus } from 'lucide-react';
+import { Star, Edit, Trash2, MessageSquarePlus, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from './ui/skeleton';
+import { useHeadAdmin } from '@/hooks/useHeadAdmin';
+import { useNavigate } from 'react-router-dom';
 
 const fetchProductRatings = async (productId: number): Promise<Rating[]> => {
   // 1. Fetch ratings
@@ -66,11 +68,13 @@ const fetchProductRatings = async (productId: number): Promise<Rating[]> => {
 };
 
 const Ratings = ({ productId }: { productId: number }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ratingToEdit, setRatingToEdit] = useState<Rating | null>(null);
+  const { data: headAdmin } = useHeadAdmin();
+  const navigate = useNavigate();
 
   const { data: ratings = [], isLoading } = useQuery({
     queryKey: ['ratings', productId],
@@ -107,6 +111,26 @@ const Ratings = ({ productId }: { productId: number }) => {
     setIsFormOpen(false);
     setRatingToEdit(null);
   }
+
+  const handleReportRating = (rating: Rating) => {
+    if (!user) {
+        navigate('/auth');
+        return;
+    }
+
+    if (!headAdmin) {
+        toast({
+            title: "Cannot Submit Report",
+            description: "The head administrator is not configured to receive reports at this time.",
+            variant: "destructive",
+        });
+        return;
+    }
+    
+    const message = `Hi, I'm reporting a review (ID: ${rating.id}) for product ID ${productId}. Review comment: "${rating.comment}"`;
+    navigate(`/chat/${headAdmin.id}`, { state: { prefilledMessage: message, autoSend: true } });
+  }
+
 
   if (isLoading) {
       return (
@@ -163,36 +187,58 @@ const Ratings = ({ productId }: { productId: number }) => {
                     <p className="font-semibold">{rating.profiles?.username || 'Anonymous'}</p>
                     <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(rating.created_at), { addSuffix: true })}</p>
                   </div>
-                  {user?.id === rating.user_id && (
-                     <Dialog open={isFormOpen && ratingToEdit?.id === rating.id} onOpenChange={(open) => !open && closeForm()}>
-                        <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    {user?.id === rating.user_id && (
+                      <>
+                        <Dialog open={isFormOpen && ratingToEdit?.id === rating.id} onOpenChange={(open) => !open && closeForm()}>
                            <DialogTrigger asChild>
                               <Button variant="outline" size="icon" onClick={() => handleEdit(rating)}>
                                  <Edit className="h-4 w-4" />
                               </Button>
                            </DialogTrigger>
-                           <AlertDialog>
-                              <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-                              <AlertDialogContent>
-                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete your review.</AlertDialogDescription>
-                                 </AlertDialogHeader>
-                                 <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteMutation.mutate(rating.id)}>Delete</AlertDialogAction>
-                                 </AlertDialogFooter>
-                              </AlertDialogContent>
-                           </AlertDialog>
-                        </div>
-                        <DialogContent>
-                           <DialogHeader>
-                              <DialogTitle>Edit your review</DialogTitle>
-                           </DialogHeader>
-                           <RatingForm productId={productId} onFormSubmit={closeForm} ratingToEdit={ratingToEdit} />
-                        </DialogContent>
-                     </Dialog>
-                  )}
+                           <DialogContent>
+                              <DialogHeader>
+                                 <DialogTitle>Edit your review</DialogTitle>
+                              </DialogHeader>
+                              <RatingForm productId={productId} onFormSubmit={closeForm} ratingToEdit={ratingToEdit} />
+                           </DialogContent>
+                        </Dialog>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete your review.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate(rating.id)}>Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                    {profile?.is_admin && user?.id !== rating.user_id && (
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                          <AlertDialogContent>
+                             <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete this user's review.</AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate(rating.id)}>Delete</AlertDialogAction>
+                             </AlertDialogFooter>
+                          </AlertDialogContent>
+                       </AlertDialog>
+                    )}
+                    {user && user.id !== rating.user_id && !profile?.is_admin && (
+                      <Button variant="outline" size="icon" onClick={() => handleReportRating(rating)} aria-label="Report review">
+                          <Flag className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center my-2">
                   {[...Array(5)].map((_, i) => (

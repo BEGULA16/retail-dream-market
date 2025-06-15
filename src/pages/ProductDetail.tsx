@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -6,15 +5,16 @@ import Footer from "@/components/Footer";
 import { Product, Profile } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import NotFound from "./NotFound";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import Ratings from "@/components/Ratings";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const fetchProduct = async (id: string): Promise<Product | null> => {
   const { data, error } = await supabase
@@ -103,9 +103,10 @@ const ProductDetailSkeleton = () => (
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ['product', id],
@@ -118,6 +119,30 @@ const ProductDetail = () => {
     queryFn: () => fetchSellerProfile(product!.seller_id!),
     enabled: !!product?.seller_id,
   });
+
+  const { mutate: deleteProduct, isPending: isDeleting } = useMutation({
+    mutationFn: async (productId: number) => {
+        const { error: ratingsError } = await supabase.from('ratings').delete().eq('product_id', productId);
+        if (ratingsError) throw ratingsError;
+
+        const { error: productError } = await supabase.from('products').delete().eq('id', productId);
+        if (productError) throw productError;
+    },
+    onSuccess: () => {
+        toast({ title: "Product Deleted", description: "The product has been successfully removed." });
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        navigate('/');
+    },
+    onError: (error: any) => {
+        toast({ variant: "destructive", title: "Error deleting product", description: error.message });
+    }
+  });
+
+  const handleDeleteProduct = () => {
+    if (product?.id) {
+        deleteProduct(product.id);
+    }
+  };
 
   const imageUrls = product?.image ? product.image.split(',') : [];
   const [mainImage, setMainImage] = useState(imageUrls[0]);
@@ -221,9 +246,32 @@ const ProductDetail = () => {
                     </p>
                 )}
             </div>
-            <Button size="lg" onClick={handleChatSeller}>
-                Chat Seller
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="lg" onClick={handleChatSeller} className="flex-grow">
+                  Chat Seller
+              </Button>
+              {currentUserProfile?.is_admin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="lg" variant="destructive" disabled={isDeleting}>
+                        <Trash2 className="h-5 w-5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the product and all its reviews. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteProduct}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
         </div>
         <Ratings productId={product.id} />

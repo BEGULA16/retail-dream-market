@@ -7,13 +7,15 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Star, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Star, MessageCircle, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NotFound from './NotFound';
 import SellerRatings from '@/components/SellerRatings';
 import SellerProducts from '@/components/SellerProducts';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
+import { useHeadAdmin } from '@/hooks/useHeadAdmin';
+import { useToast } from '@/hooks/use-toast';
 
 const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
@@ -62,9 +64,11 @@ const fetchSellerProductRatings = async (sellerId: string): Promise<Rating[]> =>
 };
 
 const UserProfile = () => {
-  const { userId } = useParams<{ userId: string }>();
+  const { userId } = useParams<{ userId:string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
+  const { data: headAdmin } = useHeadAdmin();
+  const { toast } = useToast();
 
   const { data: profile, isLoading, isError } = useQuery({
     queryKey: ['userProfile', userId],
@@ -80,6 +84,25 @@ const UserProfile = () => {
 
   const totalReviews = ratings.length;
   const averageRating = totalReviews > 0 ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalReviews : 0;
+
+  const handleReportProfile = () => {
+    if (!user) {
+        navigate('/auth');
+        return;
+    }
+
+    if (!headAdmin) {
+        toast({
+            title: "Cannot Submit Report",
+            description: "The head administrator is not configured to receive reports at this time.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    const message = `Hi, I'm reporting the profile of "${profile!.username}" (ID: ${profile!.id}) for having inappropriate content.`;
+    navigate(`/chat/${headAdmin.id}`, { state: { prefilledMessage: message, autoSend: true } });
+  };
 
   if (isLoading) {
     return (
@@ -141,11 +164,18 @@ const UserProfile = () => {
             <h1 className="text-3xl font-bold">{profile.username}</h1>
             {profile.badge && <Badge variant="secondary">{profile.badge}</Badge>}
           </div>
-          {user && user.id !== profile.id && (
-            <Button onClick={() => navigate(`/chat/${profile.id}`)} className="mt-4">
-              <MessageCircle className="mr-2 h-4 w-4" /> Chat with seller
-            </Button>
-          )}
+          <div className="flex items-center gap-2 mt-4">
+            {user && user.id !== profile.id && (
+              <Button onClick={() => navigate(`/chat/${profile.id}`)}>
+                <MessageCircle className="mr-2 h-4 w-4" /> Chat with seller
+              </Button>
+            )}
+            {user && user.id !== profile.id && !currentUserProfile?.is_admin && (
+                <Button variant="outline" onClick={handleReportProfile}>
+                    <Flag className="mr-2 h-4 w-4" /> Report User
+                </Button>
+            )}
+          </div>
           {totalReviews > 0 && (
             <div className="flex items-center gap-2 mt-4">
               <div className="flex items-center">
