@@ -97,6 +97,16 @@ const Profile = () => {
 
     setLoading(true);
     try {
+      // Explicitly get session to ensure it's fresh and available
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw new Error(`Session Error: ${sessionError.message}`);
+      }
+      if (!currentSession) {
+        throw new Error('Authentication session not found. Please log out and log in again.');
+      }
+
       // Update user_metadata in auth.users
       const { data: { user: updatedUser }, error: userError } = await supabase.auth.updateUser({
         data: { username: username.trim() }
@@ -225,11 +235,10 @@ const Profile = () => {
       navigate('/');
     } catch (error: any) {
       console.error("Error deleting account:", error);
-      const errorMessage = error.context?.body?.error || error.message || "An unknown error occurred.";
       toast({
         variant: 'destructive',
         title: 'Error deleting account',
-        description: `${errorMessage} Please ensure the 'delete-user' Edge Function is deployed and configured correctly.`,
+        description: `${error.message}. Please follow the instructions to configure the delete-user function.`,
       });
     } finally {
       setLoading(false);
@@ -357,3 +366,4 @@ const Profile = () => {
 };
 
 export default Profile;
+
