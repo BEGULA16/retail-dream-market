@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Profile } from '@/types';
+import Fuse from 'fuse.js';
 
 const fetchProfiles = async (): Promise<Profile[]> => {
   const { data, error } = await supabase
@@ -138,16 +139,22 @@ const ChatList = () => {
       }
   };
 
-  const filteredProfiles = profiles?.filter(profile => {
+  const profilesToFilter = profiles?.filter(profile => {
     const isArchived = archivedIds?.includes(profile.id);
-    const matchesSearch = profile.username?.toLowerCase().includes(searchTerm.toLowerCase());
     const isNotCurrentUser = profile.id !== user?.id;
 
     if (showArchived) {
-      return isArchived && matchesSearch && isNotCurrentUser;
+      return isArchived && isNotCurrentUser;
     }
-    return !isArchived && matchesSearch && isNotCurrentUser;
+    return !isArchived && isNotCurrentUser;
   });
+
+  const filteredProfiles = searchTerm.trim()
+    ? new Fuse(profilesToFilter || [], {
+        keys: ['username'],
+        threshold: 0.4,
+      }).search(searchTerm).map(result => result.item)
+    : profilesToFilter;
 
   if (!user) {
     return (

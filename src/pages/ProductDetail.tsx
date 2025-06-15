@@ -52,6 +52,21 @@ const fetchProduct = async (id: string): Promise<Product | null> => {
   };
 };
 
+const fetchSellerProfile = async (sellerId: string): Promise<Pick<Profile, 'username' | 'avatar_url' | 'badge'> | null> => {
+  if (!sellerId) return null;
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('username, avatar_url, badge')
+    .eq('id', sellerId)
+    .single();
+
+  if (profileError) {
+    console.error(`Error fetching seller profile for product:`, profileError);
+    return null;
+  }
+  return profileData;
+}
+
 const ProductDetailSkeleton = () => (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
@@ -95,6 +110,12 @@ const ProductDetail = () => {
     queryKey: ['product', id],
     queryFn: () => fetchProduct(id!),
     enabled: !!id,
+  });
+
+  const { data: sellerProfile } = useQuery({
+    queryKey: ['sellerProfileForProduct', product?.seller_id],
+    queryFn: () => fetchSellerProfile(product!.seller_id!),
+    enabled: !!product?.seller_id,
   });
 
   const imageUrls = product?.image ? product.image.split(',') : [];
@@ -171,16 +192,19 @@ const ProductDetail = () => {
               {product.category}
             </Badge>
             <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground mb-4">{product.name}</h1>
-            {product.profiles && product.seller_id && (
+            {sellerProfile && product.seller_id && (
               <div className="mb-4">
                 <Link to={`/user/${product.seller_id}`} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={product.profiles.avatar_url || undefined} alt={product.profiles.username} />
-                    <AvatarFallback>{product.profiles.username?.charAt(0).toUpperCase() || 'S'}</AvatarFallback>
+                    <AvatarImage src={sellerProfile.avatar_url || undefined} alt={sellerProfile.username} />
+                    <AvatarFallback>{sellerProfile.username?.charAt(0).toUpperCase() || 'S'}</AvatarFallback>
                   </Avatar>
                   <div className="text-left">
                     <span className="block text-xs">Seller</span>
-                    <span className="font-semibold text-base text-foreground">{product.profiles.username}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-base text-foreground">{sellerProfile.username}</span>
+                        {sellerProfile.badge && <Badge variant="secondary">{sellerProfile.badge}</Badge>}
+                    </div>
                   </div>
                 </Link>
               </div>

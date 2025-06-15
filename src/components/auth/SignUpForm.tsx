@@ -23,6 +23,18 @@ const formSchema = z.object({
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
 });
 
+const checkUsernameExists = async (username: string) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('username', username)
+    .single();
+  if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+    throw error;
+  }
+  return !!data;
+};
+
 export const SignUpForm = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -38,6 +50,17 @@ export const SignUpForm = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
+
+    const usernameExists = await checkUsernameExists(values.username);
+    if (usernameExists) {
+        form.setError("username", {
+            type: "manual",
+            message: "Username is already taken. Please choose another one.",
+        });
+        setLoading(false);
+        return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
