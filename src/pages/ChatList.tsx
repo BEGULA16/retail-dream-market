@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -108,6 +109,16 @@ const ChatList = () => {
 
   const handleArchive = async (profileId: string) => {
       if (!user) return;
+
+      if (headAdmin && profileId === headAdmin.id) {
+          toast({
+              title: "Action Not Allowed",
+              description: "The head admin contact cannot be archived.",
+              variant: "destructive",
+          });
+          return;
+      }
+      
       try {
           const { error } = await supabase
               .from('archived_conversations')
@@ -231,7 +242,13 @@ const ChatList = () => {
                             <span className="sr-only">Unarchive</span>
                         </Button>
                     ) : (
-                        <Button variant="ghost" size="icon" onClick={() => handleArchive(profile.id)}>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleArchive(profile.id)}
+                            disabled={headAdmin?.id === profile.id}
+                            title={headAdmin?.id === profile.id ? 'The head admin cannot be archived' : 'Archive'}
+                        >
                             <Archive className="h-5 w-5" />
                             <span className="sr-only">Archive</span>
                         </Button>
