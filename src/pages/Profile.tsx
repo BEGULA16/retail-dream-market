@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Switch } from '@/components/ui/switch';
 
 const Profile = () => {
   const { user, session } = useAuth();
@@ -29,6 +29,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
+  const [isSeller, setIsSeller] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,7 +49,7 @@ const Profile = () => {
       try {
         let { data, error, status } = await supabase
           .from('profiles')
-          .select(`username, avatar_url`)
+          .select(`username, avatar_url, is_seller`)
           .eq('id', user.id)
           .single();
 
@@ -62,8 +63,9 @@ const Profile = () => {
               id: user.id, 
               username: emailUsername,
               updated_at: new Date().toISOString(),
+              is_seller: false,
             })
-            .select('username, avatar_url')
+            .select('username, avatar_url, is_seller')
             .single();
 
           if (insertError) {
@@ -79,6 +81,7 @@ const Profile = () => {
         if (data) {
           setUsername(data.username || '');
           setAvatarUrl(data.avatar_url);
+          setIsSeller(data.is_seller || false);
         }
       } catch (error: any)
 {
@@ -237,6 +240,32 @@ const Profile = () => {
     }
   };
 
+  const handleSellerModeToggle = async (checked: boolean) => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ is_seller: checked, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      if (profileError) throw profileError;
+
+      const { error: userError } = await supabase.auth.updateUser({
+        data: { is_seller: checked }
+      });
+      if (userError) throw userError;
+      
+      setIsSeller(checked);
+      toast({ title: `Seller mode ${checked ? 'enabled' : 'disabled'}.` });
+
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error updating seller status', description: error.message });
+      setIsSeller(!checked);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (user?.email !== 'damiankehnan@proton.me') {
       toast({
@@ -323,9 +352,10 @@ const Profile = () => {
       </Card>
       
       <Tabs defaultValue="username">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="username">Update Username</TabsTrigger>
           <TabsTrigger value="password">Change Password</TabsTrigger>
+          <TabsTrigger value="seller">Seller Settings</TabsTrigger>
           <TabsTrigger value="delete">Delete Account</TabsTrigger>
         </TabsList>
         <TabsContent value="username">
@@ -355,6 +385,25 @@ const Profile = () => {
                 <Input id="confirm-password" type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                 <Button type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update Password'}</Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="seller">
+          <Card>
+            <CardHeader>
+              <CardTitle>Seller Mode</CardTitle>
+              <CardDescription>Enable this to access the seller panel and list products for sale.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="seller-mode"
+                  checked={isSeller}
+                  onCheckedChange={handleSellerModeToggle}
+                  disabled={loading}
+                />
+                <Label htmlFor="seller-mode">Enable Seller Mode</Label>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

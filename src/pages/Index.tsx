@@ -148,12 +148,6 @@ const Index = () => {
               Our Products
             </h1>
             <div className="flex items-center gap-4">
-              <Button asChild>
-                <Link to="/seller-panel">
-                  <Store className="mr-2 h-4 w-4" /> Seller Panel
-                </Link>
-              </Button>
-
               <Button asChild className="relative">
                 <Link to="/chat">
                   <MessageSquare /> Go to Chat

@@ -1,3 +1,4 @@
+
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from '@/lib/supabase';
-import { LogOut, MessageSquare, User as UserIcon, Bell, BellRing } from 'lucide-react';
+import { LogOut, MessageSquare, User as UserIcon, Bell, BellRing, Store } from 'lucide-react';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -86,6 +87,14 @@ const Header = () => {
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/profile"><UserIcon className="mr-2 h-4 w-4" />Profile</Link>
                   </DropdownMenuItem>
+                  {user?.user_metadata?.is_seller && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/seller-panel">
+                        <Store className="mr-2 h-4 w-4" />
+                        Seller Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/chat" className="flex items-center justify-between w-full">
                       <div className="flex items-center">
