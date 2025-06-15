@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -180,7 +179,7 @@ const ProductDetail = () => {
                     <AvatarFallback>{product.profiles.username?.charAt(0).toUpperCase() || 'S'}</AvatarFallback>
                   </Avatar>
                   <div className="text-left">
-                    <span className="block text-xs">Sold by</span>
+                    <span className="block text-xs">Seller</span>
                     <span className="font-semibold text-base text-foreground">{product.profiles.username}</span>
                   </div>
                 </Link>
