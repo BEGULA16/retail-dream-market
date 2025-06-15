@@ -5,7 +5,7 @@ import { Product } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Flag } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
   product: Product;
@@ -15,12 +15,27 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const isOutOfStock = !product.stock || product.stock <= 0;
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleChatSeller = () => {
+  const handleChatSeller = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!product.seller_id) {
+        toast({
+            variant: "destructive",
+            title: "Seller not available",
+            description: "This product does not have a seller assigned.",
+        });
+        return;
+    }
     if (user) {
-      navigate('/chat');
+        if (user.id === product.seller_id) {
+            toast({ title: "This is your product", description: "You cannot chat with yourself." });
+            return;
+        }
+        navigate(`/chat/${product.seller_id}`);
     } else {
-      navigate('/auth');
+        navigate('/auth');
     }
   };
   
@@ -77,7 +92,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
         <div className="mt-auto pt-4 flex items-center gap-2">
           <Button className="w-full" onClick={handleChatSeller}>
-            Go to chat list
+            Chat Seller
           </Button>
           <Button variant="outline" size="icon" onClick={handleReport} aria-label="Report item">
             <Flag className="h-4 w-4" />

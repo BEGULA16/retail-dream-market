@@ -1,4 +1,3 @@
-
 export interface Product {
   id: number;
   name: string;
@@ -10,6 +9,7 @@ export interface Product {
   link?: string;
   stock?: number;
   seller_id?: string;
+  profiles?: Pick<Profile, 'username' | 'avatar_url'> | null;
 }
 
 export interface Profile {

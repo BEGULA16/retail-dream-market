@@ -13,11 +13,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import Ratings from "@/components/Ratings";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const fetchProduct = async (id: string): Promise<Product | null> => {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select('*, profiles:seller_id(username, avatar_url)')
     .eq('id', id)
     .single();
 
@@ -72,6 +74,7 @@ const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ['product', id],
@@ -87,8 +90,20 @@ const ProductDetail = () => {
   }
   
   const handleChatSeller = () => {
+    if (!product?.seller_id) {
+      toast({
+        variant: "destructive",
+        title: "Seller not available",
+        description: "This product does not have an associated seller.",
+      });
+      return;
+    }
     if (user) {
-      navigate("/chat");
+      if (user.id === product.seller_id) {
+        toast({ title: "This is your own product", description: "You cannot start a chat about your own listing." });
+        return;
+      }
+      navigate(`/chat/${product.seller_id}`);
     } else {
       navigate("/auth");
     }
@@ -141,6 +156,20 @@ const ProductDetail = () => {
               {product.category}
             </Badge>
             <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground mb-4">{product.name}</h1>
+            {product.profiles && product.seller_id && (
+              <div className="mb-4">
+                <Link to={`/user/${product.seller_id}`} className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={product.profiles.avatar_url || undefined} alt={product.profiles.username} />
+                    <AvatarFallback>{product.profiles.username?.charAt(0).toUpperCase() || 'S'}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <span className="block text-xs">Sold by</span>
+                    <span className="font-semibold text-base text-foreground">{product.profiles.username}</span>
+                  </div>
+                </Link>
+              </div>
+            )}
             <p className="text-muted-foreground text-lg mb-6">{product.description}</p>
             <div className="flex items-baseline justify-between mb-6">
                 <p className="text-3xl font-bold text-primary">{product.price}</p>
@@ -151,7 +180,7 @@ const ProductDetail = () => {
                 )}
             </div>
             <Button size="lg" onClick={handleChatSeller}>
-                Go to chat list
+                Chat Seller
             </Button>
           </div>
         </div>
