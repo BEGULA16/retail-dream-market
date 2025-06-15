@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { Profile } from '@/types';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   session: Session | null;
@@ -27,8 +29,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -40,9 +43,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return null;
     }
     return data as Profile | null;
-  };
+  }, []);
 
-  const refreshAuth = async () => {
+  const refreshAuth = useCallback(async () => {
     const { data: { session: newSession } } = await supabase.auth.getSession();
     setSession(newSession);
     const authUser = newSession?.user ?? null;
@@ -53,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
         setProfile(null);
     }
-  };
+  }, [fetchProfile]);
 
   useEffect(() => {
     setLoading(true);
@@ -81,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(null);
       setIsLoadingProfile(false);
     }
-  }, [user]);
+  }, [user, fetchProfile]);
 
   // Auto-unban logic for expired temporary bans
   useEffect(() => {
@@ -92,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       unbanUser();
     }
-  }, [profile]);
+  }, [profile, refreshAuth]);
 
   useEffect(() => {
     if (!user) return;
@@ -116,7 +119,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       supabase.removeChannel(profileChannel);
     };
-  }, [user]);
+  }, [user, refreshAuth]);
+
+  // Global handler for new messages
+  useEffect(() => {
+    if (!user) return;
+
+    const handleNewMessage = (payload: any) => {
+      queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
+
+      const newMessage = payload.new as { recipient_id: string; sender_id: string };
+
+      supabase
+        .from('archived_conversations')
+        .select('archived_user_id')
+        .eq('user_id', user.id)
+        .eq('archived_user_id', newMessage.sender_id)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error checking for archived conversation:', error);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            supabase
+              .from('archived_conversations')
+              .delete()
+              .match({ user_id: user.id, archived_user_id: newMessage.sender_id })
+              .then(({ error: deleteError }) => {
+                if (!deleteError) {
+                  toast({
+                    title: "Message from archived chat",
+                    description: "The conversation has been moved to your inbox.",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
+                }
+              });
+          }
+        });
+    };
+
+    const channel = supabase
+      .channel(`global-messages-listener-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+        handleNewMessage
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient, toast]);
 
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;

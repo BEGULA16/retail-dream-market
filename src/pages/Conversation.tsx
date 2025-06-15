@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,7 @@ const Conversation = () => {
     const [isSending, setIsSending] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(0);
     const imageInputRef = useRef<HTMLInputElement>(null);
-    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!user) {
@@ -60,11 +59,8 @@ const Conversation = () => {
     
     const { messages, isLoading: messagesLoading } = useMessages(recipientId!);
 
-    useLayoutEffect(() => {
-        const viewport = scrollAreaRef.current?.firstElementChild;
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     const sendMessage = async (content: string | null, imageUrl: string | null, imageFileToSend: File | null) => {
@@ -185,7 +181,7 @@ const Conversation = () => {
                 </div>
 
                 <div className="flex-grow border rounded-lg p-4 mb-4 flex flex-col justify-between">
-                    <ScrollArea className="flex-grow h-[calc(100vh-320px)]" ref={scrollAreaRef}>
+                    <ScrollArea className="flex-grow h-[calc(100vh-320px)]">
                          <div className="px-4">
                             {messagesLoading ? (
                                 <p className="text-center text-muted-foreground py-8">Loading messages...</p>
@@ -196,6 +192,7 @@ const Conversation = () => {
                                     <p>This is the beginning of your conversation.</p>
                                 </div>
                             )}
+                            <div ref={messagesEndRef} />
                         </div>
                     </ScrollArea>
                     <div className="mt-4">
