@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import SellerPanel from "./pages/SellerPanel";
 import UserProfile from "./pages/UserProfile";
 import AdminPanel from "./pages/AdminPanel";
+import UpdatePassword from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/chat" element={<ChatList />} />
               <Route path="/chat/:recipientId" element={<Conversation />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/update-password" element={<UpdatePassword />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/user/:userId" element={<UserProfile />} />
               <Route path="/seller-panel" element={<SellerPanel />} />

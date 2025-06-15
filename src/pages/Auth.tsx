@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -14,6 +24,7 @@ const Auth = () => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [lockoutTimeLeft, setLockoutTimeLeft] = useState(0);
+  const [resetEmail, setResetEmail] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -50,7 +61,6 @@ const Auth = () => {
       setLockoutTimeLeft(0);
     }
   }, [email]);
-
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +114,30 @@ const Auth = () => {
       setLockoutTimeLeft(0);
       toast({ title: "Signed in successfully!" });
       navigate('/');
+    }
+    setLoading(false);
+  };
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      toast({
+        variant: "destructive",
+        title: "Email is required.",
+      });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/update-password`,
+    });
+
+    if (error) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } else {
+      toast({
+        title: "Password reset link sent",
+        description: "Please check your email to proceed.",
+      });
     }
     setLoading(false);
   };
@@ -163,6 +197,35 @@ const Auth = () => {
                   {lockoutTimeLeft > 0 ? `Try again in ${lockoutTimeLeft}s` : loading ? 'Signing in...' : 'Sign In'}
                 </Button>
               </form>
+              <div className="mt-4 text-center">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="link" className="px-0">Forgot your password?</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset your password</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Enter your email address and we will send you a link to reset your password.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-4">
+                      <Input
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                      />
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handlePasswordReset} disabled={loading}>
+                        {loading ? 'Sending...' : 'Send Reset Link'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
