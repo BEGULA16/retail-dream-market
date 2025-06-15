@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,15 +76,23 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      const { error: profileError } = await supabase.from('profiles').update({ username }).eq('id', user.id);
-      if (profileError) throw profileError;
+      const { error } = await supabase.functions.invoke('update-username', {
+        method: 'POST',
+        body: { username: username.trim() },
+      });
 
-      const { error: authError } = await supabase.auth.updateUser({ data: { username } });
-      if (authError) throw authError;
+      if (error) throw error;
+
+      // Manually refresh session to get updated user metadata
+      await supabase.auth.refreshSession();
 
       toast({ title: 'Username updated successfully!' });
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error updating username', description: error.message });
+      toast({
+        variant: 'destructive',
+        title: 'Error updating username',
+        description: error.message || "Please ensure the 'update-username' Edge Function is set up correctly in Supabase.",
+      });
     } finally {
       setLoading(false);
     }
