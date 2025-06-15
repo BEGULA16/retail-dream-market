@@ -1,3 +1,4 @@
+
 export interface Product {
   id: number;
   name: string;
@@ -16,6 +17,7 @@ export interface Profile {
   id: string; // user id
   username: string;
   avatar_url: string | null;
+  created_at?: string;
   badge?: string | null;
   is_banned?: boolean;
 }

@@ -11,13 +11,16 @@ import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Profile } from '@/types';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const fetchUsers = async (): Promise<Profile[]> => {
-    // We are fetching only the columns that are known to exist to avoid errors.
-    // 'created_at' and 'badge' seem to be missing from your 'profiles' table.
+    // We are now fetching created_at and badge as well.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, is_banned');
+        .select('id, username, avatar_url, is_banned, created_at, badge');
     
     if (error) {
         console.error("Error fetching users:", error);
@@ -33,6 +36,10 @@ const AdminPanel = () => {
         queryKey: ['adminUsers'],
         queryFn: fetchUsers,
     });
+
+    const [isBadgeDialogOpen, setIsBadgeDialogOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+    const [badgeText, setBadgeText] = useState('');
     
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
         mutationFn: async ({ userId, newBanStatus }: { userId: string, newBanStatus: boolean }) => {
@@ -54,9 +61,41 @@ const AdminPanel = () => {
         }
     });
 
+    const { mutate: updateBadge, isPending: isUpdatingBadge } = useMutation({
+        mutationFn: async ({ userId, badge }: { userId: string, badge: string }) => {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ badge: badge || null }) // Send null if badge is empty to remove it
+                .eq('id', userId);
+            
+            if (error) {
+                throw new Error(error.message);
+            }
+        },
+        onSuccess: () => {
+            toast.success("User's badge has been updated.");
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            setIsBadgeDialogOpen(false);
+        },
+        onError: (error: Error) => {
+            toast.error(`Failed to update badge: ${error.message}`);
+        }
+    });
+
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
         toggleBan({ userId: user.id, newBanStatus: !user.is_banned });
+    };
+
+    const handleOpenBadgeDialog = (user: Profile) => {
+        setSelectedUser(user);
+        setBadgeText(user.badge || '');
+        setIsBadgeDialogOpen(true);
+    };
+
+    const handleUpdateBadge = () => {
+        if (!selectedUser?.id) return;
+        updateBadge({ userId: selectedUser.id, badge: badgeText });
     };
     
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
@@ -110,7 +149,7 @@ const AdminPanel = () => {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            N/A
+                                            {user.created_at ? formatDistanceToNow(new Date(user.created_at), { addSuffix: true }) : 'N/A'}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex gap-2 justify-end">
@@ -122,7 +161,11 @@ const AdminPanel = () => {
                                                 >
                                                     {user.is_banned ? <User className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
                                                 </Button>
-                                                <Button variant="outline" size="icon" disabled>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    onClick={() => handleOpenBadgeDialog(user)}
+                                                >
                                                     <BadgeIcon className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -134,6 +177,31 @@ const AdminPanel = () => {
                     )}
                 </CardContent>
             </Card>
+            <Dialog open={isBadgeDialogOpen} onOpenChange={setIsBadgeDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Badge for {selectedUser?.username}</DialogTitle>
+                        <DialogDescription>
+                            Enter a new badge for this user or leave it empty to remove the current one.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <Label htmlFor="badge-text">Badge Text</Label>
+                        <Input
+                            id="badge-text"
+                            value={badgeText}
+                            onChange={(e) => setBadgeText(e.target.value)}
+                            placeholder="e.g. Moderator, VIP"
+                        />
+                    </div>
+                    <DialogFooter>
+                         <Button variant="outline" onClick={() => setIsBadgeDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleUpdateBadge} disabled={isUpdatingBadge}>
+                            {isUpdatingBadge ? 'Saving...' : 'Save Badge'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
