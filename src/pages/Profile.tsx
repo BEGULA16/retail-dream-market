@@ -24,7 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 
 const Profile = () => {
-  const { user, session } = useAuth();
+  const { user, session, refreshAuth } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -257,12 +257,7 @@ const Profile = () => {
       
       setIsSeller(checked);
       
-      // Force a session refresh to get updated user metadata
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-          console.error('Error refreshing session after toggling seller mode:', refreshError.message);
-          // We can still show the toast because the update likely succeeded.
-      }
+      await refreshAuth();
 
       toast({ title: `Seller mode ${checked ? 'enabled' : 'disabled'}.` });
 

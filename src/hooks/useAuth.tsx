@@ -7,15 +7,26 @@ import { useQueryClient } from '@tanstack/react-query';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  refreshAuth: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ session: null, user: null });
+const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  refreshAuth: () => Promise.resolve(),
+});
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
+
+  const refreshAuth = async () => {
+    const { data: { session: newSession } } = await supabase.auth.getSession();
+    setSession(newSession);
+    setUser(newSession?.user ?? null);
+  };
 
   useEffect(() => {
     const getSession = async () => {
@@ -59,12 +70,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, queryClient]);
 
   return (
-    <AuthContext.Provider value={{ session, user }}>
+    <AuthContext.Provider value={{ session, user, refreshAuth }}>
       {!loading && children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
