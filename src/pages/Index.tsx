@@ -1,10 +1,11 @@
+
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import products from "@/data/products.json";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, MessageSquare } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,24 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Fuse from "fuse.js";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { MessageSquare } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("default");
-
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
-  };
 
   const categories = useMemo(() => {
     const allCategories = products.map((p) => p.category);
@@ -77,18 +67,6 @@ const Index = () => {
       <Header />
       <main className="flex-grow">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex justify-end mb-4">
-            {user ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">{user.email}</span>
-                <Button variant="outline" onClick={handleLogout}>Logout</Button>
-              </div>
-            ) : (
-              <Button asChild>
-                <Link to="/auth">Login</Link>
-              </Button>
-            )}
-          </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
             <div className="relative w-full sm:flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
