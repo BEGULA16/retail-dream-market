@@ -34,7 +34,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
             return;
         }
         const message = `Hi I am interested on this item\n${product.name}\nwilling to pay ${product.price}`;
-        navigate(`/chat/${product.seller_id}`, { state: { prefilledMessage: message } });
+        const imageUrl = product.image ? product.image.split(',')[0] : undefined;
+        navigate(`/chat/${product.seller_id}`, { state: { prefilledMessage: message, prefilledImage: imageUrl, autoSend: true } });
     } else {
         navigate('/auth');
     }

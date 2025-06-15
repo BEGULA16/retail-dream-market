@@ -37,7 +37,8 @@ const Conversation = () => {
     const location = useLocation();
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const [newMessage, setNewMessage] = useState(location.state?.prefilledMessage || '');
+    const { prefilledMessage, prefilledImage, autoSend } = location.state || {};
+    const [newMessage, setNewMessage] = useState(prefilledMessage && !autoSend ? prefilledMessage : '');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(0);
@@ -90,9 +91,8 @@ const Conversation = () => {
         }
     }, [messages]);
 
-    const handleSendMessage = async (e: React.FormEvent | React.KeyboardEvent) => {
-        e.preventDefault();
-        if (!user || (!newMessage.trim() && !imageFile)) return;
+    const sendMessage = async (content: string | null, imageUrl: string | null, imageFileToSend: File | null) => {
+        if (!user || (!content?.trim() && !imageUrl && !imageFileToSend)) return false;
 
         if (user.email !== 'damiankehnan@proton.me') {
             const now = Date.now();
@@ -102,27 +102,27 @@ const Conversation = () => {
                     title: 'You are sending messages too fast!',
                     description: 'Please wait a moment before sending another message.',
                 });
-                return;
+                return false;
             }
         }
 
         setIsSending(true);
-        let imageUrl: string | null = null;
+        let finalImageUrl: string | null = imageUrl;
 
         try {
-            if (imageFile) {
-                if (imageFile.size > 2 * 1024 * 1024) { // 2MB limit
+            if (imageFileToSend) {
+                if (imageFileToSend.size > 2 * 1024 * 1024) { // 2MB limit
                     toast({ variant: 'destructive', title: 'Image too large', description: 'Please select an image smaller than 2MB.' });
                     setIsSending(false);
-                    return;
+                    return false;
                 }
-                const fileExt = imageFile.name.split('.').pop();
+                const fileExt = imageFileToSend.name.split('.').pop();
                 const filePath = `${user.id}/${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage.from('messages').upload(filePath, imageFile);
+                const { error: uploadError } = await supabase.storage.from('messages').upload(filePath, imageFileToSend);
                 if (uploadError) throw uploadError;
                 
                 const { data } = supabase.storage.from('messages').getPublicUrl(filePath);
-                imageUrl = data.publicUrl;
+                finalImageUrl = data.publicUrl;
             }
 
             const { error } = await supabase
@@ -130,22 +130,53 @@ const Conversation = () => {
                 .insert({
                     sender_id: user.id,
                     recipient_id: recipientId!,
-                    content: newMessage.trim() || null,
-                    image_url: imageUrl,
+                    content: content ? content.trim() : null,
+                    image_url: finalImageUrl,
                 }).select().single();
 
             if (error) throw error;
             
-            setNewMessage('');
-            setImageFile(null);
-            if (imageInputRef.current) imageInputRef.current.value = "";
             setLastMessageTime(Date.now());
             queryClient.invalidateQueries({ queryKey: ['messages', user.id, recipientId] });
+            return true;
 
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error sending message', description: error.message });
+            return false;
         } finally {
             setIsSending(false);
+        }
+    };
+
+    useEffect(() => {
+        let isMounted = true;
+        if (autoSend && prefilledMessage && user && recipientId) {
+            const send = async () => {
+                if (!isMounted) return;
+                
+                toast({
+                    title: "Sending your interest...",
+                    description: "The seller will be notified shortly.",
+                });
+                
+                await sendMessage(prefilledMessage, prefilledImage, null);
+                
+                if (isMounted) {
+                    navigate(location.pathname, { replace: true, state: {} });
+                }
+            };
+            send();
+        }
+        return () => { isMounted = false; };
+    }, [autoSend, prefilledMessage, prefilledImage, user, recipientId, navigate, location.pathname]);
+
+    const handleSendMessage = async (e: React.FormEvent | React.KeyboardEvent) => {
+        e.preventDefault();
+        const success = await sendMessage(newMessage, null, imageFile);
+        if (success) {
+            setNewMessage('');
+            setImageFile(null);
+            if (imageInputRef.current) imageInputRef.current.value = "";
         }
     };
     
