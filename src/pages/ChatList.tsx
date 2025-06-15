@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Profile } from '@/types';
 import Fuse from 'fuse.js';
+import { useHeadAdmin } from '@/hooks/useHeadAdmin';
 
 const fetchProfiles = async (): Promise<Profile[]> => {
   const { data, error } = await supabase
@@ -77,6 +78,7 @@ const ChatList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: headAdmin } = useHeadAdmin();
 
   useEffect(() => {
     if (!user) {
@@ -165,7 +167,8 @@ const ChatList = () => {
           filteredProfiles = allProfilesToFilter?.filter(profile => {
               const isPartner = chatPartnerIds?.includes(profile.id);
               const isArchived = archivedIds?.includes(profile.id);
-              return isPartner && !isArchived;
+              const isHeadAdmin = headAdmin ? profile.id === headAdmin.id : false;
+              return (isPartner || isHeadAdmin) && !isArchived;
           });
       }
   }
