@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,6 +10,17 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const Profile = () => {
   const { user, session } = useAuth();
@@ -131,6 +141,28 @@ const Profile = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user', {
+        method: 'POST',
+      });
+      if (error) throw error;
+
+      toast({ title: 'Account deleted successfully.' });
+      await supabase.auth.signOut();
+      navigate('/');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error deleting account',
+        description: error.message || "Please ensure the 'delete-user' Edge Function is set up correctly in Supabase.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : '');
 
   if (loading && !username) {
@@ -175,9 +207,10 @@ const Profile = () => {
       </Card>
       
       <Tabs defaultValue="username">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="username">Update Username</TabsTrigger>
           <TabsTrigger value="password">Change Password</TabsTrigger>
+          <TabsTrigger value="delete">Delete Account</TabsTrigger>
         </TabsList>
         <TabsContent value="username">
           <Card>
@@ -208,10 +241,45 @@ const Profile = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="delete">
+          <Card>
+            <CardHeader>
+              <CardTitle>Delete Account</CardTitle>
+              <CardDescription>
+                Permanently delete your account and all of your content. This action is not reversible.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={loading}>Delete Account</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your account
+                      and remove your data from our servers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      disabled={loading}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {loading ? 'Deleting...' : 'Continue'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
 };
 
 export default Profile;
-
