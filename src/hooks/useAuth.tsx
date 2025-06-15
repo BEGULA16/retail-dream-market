@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -104,34 +103,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [profile, refreshAuth]);
 
+  // Fallback polling mechanism to check for profile status changes (e.g., bans)
   useEffect(() => {
     if (!user) return;
 
-    const profileChannel = supabase
-      .channel(`realtime-profile-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Received profile update via realtime. Payload:', payload);
-          toast({
-            title: 'Your account status has been updated.',
-            description: 'Please wait while we refresh your session.',
-          });
-          refreshAuth();
-        }
-      )
-      .subscribe();
+    const interval = setInterval(() => {
+      console.log('Periodically checking for profile updates...');
+      refreshAuth();
+    }, 30000); // Poll every 30 seconds
 
-    return () => {
-      supabase.removeChannel(profileChannel);
-    };
-  }, [user, refreshAuth, toast]);
+    return () => clearInterval(interval);
+  }, [user, refreshAuth]);
 
   // Global message handler for real-time updates
   useEffect(() => {
