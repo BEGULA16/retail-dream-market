@@ -80,8 +80,21 @@ const SellerPanel = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (productId: number) => {
-      const { error } = await supabase.from("products").delete().eq("id", productId);
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", productId)
+        .select();
+
+      if (error) {
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        throw new Error("Could not delete product. You might not have the right permissions.");
+      }
+
+      return data;
     },
     onSuccess: () => {
       toast({ title: "Product Deleted", description: "Your product has been successfully deleted." });

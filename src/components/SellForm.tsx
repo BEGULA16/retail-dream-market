@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -183,10 +182,10 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
       imageUrlsString = uploadedImageUrls.join(',');
     }
     
-    let error;
+    let error: any;
 
     if (isEditMode) {
-        const { error: updateError } = await supabase
+        const { data, error: updateError } = await supabase
             .from("products")
             .update({
                 name: values.name,
@@ -197,8 +196,15 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
                 info: values.info,
                 image: imageUrlsString,
             })
-            .eq('id', productToEdit.id);
+            .eq('id', productToEdit.id)
+            .select();
         error = updateError;
+
+        if (!error && (!data || data.length === 0)) {
+          error = {
+            message: "Could not update product. You may not have permission.",
+          }
+        }
     } else {
         const { error: insertError } = await supabase.from("products").insert([
           {
@@ -220,7 +226,7 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
       console.error("Error saving product:", error);
       toast({
         title: "Error",
-        description: `There was an error ${isEditMode ? 'updating' : 'listing'} your product. Please try again.`,
+        description: error.message || `There was an error ${isEditMode ? 'updating' : 'listing'} your product. Please try again.`,
         variant: "destructive",
       });
     } else {
