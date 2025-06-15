@@ -55,22 +55,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setLoading(true);
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        try {
-          setSession(session);
-          const authUser = session?.user ?? null;
-          setUser(authUser);
-          if (authUser) {
-            const profileData = await fetchProfile(authUser.id);
-            setProfile(profileData);
-          } else {
-            setProfile(null);
-          }
-        } catch (error) {
-          console.error("Error in auth state change handler:", error);
-        } finally {
-          setLoading(false);
-        }
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
@@ -80,7 +68,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Auto-unban logic for expired temporary bans
+    if (user) {
+      fetchProfile(user.id).then((profileData) => {
+        setProfile(profileData);
+      });
+    } else {
+      setProfile(null);
+    }
+  }, [user]);
+
+  // Auto-unban logic for expired temporary bans
+  useEffect(() => {
     if (profile?.is_banned && profile.banned_until && new Date(profile.banned_until) < new Date()) {
       const unbanUser = async () => {
         await supabase.from('profiles').update({ is_banned: false, banned_until: null }).eq('id', profile.id);
