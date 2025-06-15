@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,13 +46,33 @@ const Profile = () => {
       if (!user) return;
       setLoading(true);
       try {
-        const { data, error, status } = await supabase
+        let { data, error, status } = await supabase
           .from('profiles')
           .select(`username, avatar_url`)
           .eq('id', user.id)
           .single();
 
-        if (error && status !== 406) {
+        if (error && status === 406) {
+          // Profile does not exist, create it.
+          const emailUsername = user.email?.split('@')[0] || `user${Math.floor(Math.random() * 1000)}`;
+          console.log(`Creating profile for user ${user.id} with username ${emailUsername}`);
+          const { data: insertData, error: insertError } = await supabase
+            .from('profiles')
+            .insert({ 
+              id: user.id, 
+              username: emailUsername,
+              updated_at: new Date().toISOString(),
+            })
+            .select('username, avatar_url')
+            .single();
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            throw insertError;
+          }
+          console.log('Profile created successfully:', insertData);
+          data = insertData;
+        } else if (error) {
           throw error;
         }
 
@@ -59,7 +80,8 @@ const Profile = () => {
           setUsername(data.username || '');
           setAvatarUrl(data.avatar_url);
         }
-      } catch (error: any) {
+      } catch (error: any)
+{
         toast({ variant: 'destructive', title: 'Error fetching profile', description: error.message });
       } finally {
         setLoading(false);
