@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -60,6 +61,7 @@ export const useMessages = (recipientId: string) => {
           console.error('Error marking messages as read:', error);
         } else {
           queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
+          queryClient.invalidateQueries({ queryKey: ['profiles'] });
         }
       };
 
@@ -80,8 +82,27 @@ export const useMessages = (recipientId: string) => {
                 table: 'messages',
                 filter: `or(and(sender_id.eq.${senderId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${senderId}))`
             },
-            () => {
+            (payload) => {
+                console.log('New message received in conversation:', payload);
                 queryClient.invalidateQueries({ queryKey });
+                queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
+                queryClient.invalidateQueries({ queryKey: ['profiles'] });
+                queryClient.invalidateQueries({ queryKey: ['archivedConversations', senderId] });
+            }
+        )
+        .on(
+            'postgres_changes',
+            { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'messages',
+                filter: `or(and(sender_id.eq.${senderId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${senderId}))`
+            },
+            (payload) => {
+                console.log('Message updated in conversation:', payload);
+                queryClient.invalidateQueries({ queryKey });
+                queryClient.invalidateQueries({ queryKey: ['unreadCounts', senderId] });
+                queryClient.invalidateQueries({ queryKey: ['profiles'] });
             }
         )
         .subscribe();

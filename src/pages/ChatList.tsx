@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
+import { useGlobalMessages } from '@/hooks/useGlobalMessages';
 import { Profile } from '@/types';
 import Fuse from 'fuse.js';
 
@@ -48,6 +50,9 @@ const ChatList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Use the global message handler
+  useGlobalMessages();
 
   useEffect(() => {
     if (!user) {
