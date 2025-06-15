@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -54,35 +53,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const getSessionAndProfile = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        const authUser = session?.user ?? null;
-        setUser(authUser);
-        if (authUser) {
-          const profileData = await fetchProfile(authUser.id);
-          setProfile(profileData);
-        }
-      } catch (error) {
-        console.error("Error getting session and profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSessionAndProfile();
-
+    setLoading(true);
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setSession(session);
-        const authUser = session?.user ?? null;
-        setUser(authUser);
-        if (authUser) {
+        try {
+          setSession(session);
+          const authUser = session?.user ?? null;
+          setUser(authUser);
+          if (authUser) {
             const profileData = await fetchProfile(authUser.id);
             setProfile(profileData);
-        } else {
+          } else {
             setProfile(null);
+          }
+        } catch (error) {
+          console.error("Error in auth state change handler:", error);
+        } finally {
+          setLoading(false);
         }
       }
     );
