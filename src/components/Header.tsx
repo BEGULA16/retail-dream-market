@@ -1,4 +1,3 @@
-
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -13,14 +12,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from '@/lib/supabase';
-import { LogOut, MessageSquare, User as UserIcon } from 'lucide-react';
+import { LogOut, MessageSquare, User as UserIcon, Bell, BellRing } from 'lucide-react';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Badge } from '@/components/ui/badge';
+import { useNotifications } from '@/hooks/useNotifications';
+import { toast } from 'sonner';
 
 const Header = () => {
   const { user, session } = useAuth();
   const navigate = useNavigate();
   const { totalUnreadCount } = useUnreadCounts();
+  const { permission, requestNotificationPermission } = useNotifications();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -31,6 +33,20 @@ const Header = () => {
     const name = user?.user_metadata?.username || user?.email;
     if (!name) return 'U';
     return name.charAt(0).toUpperCase();
+  };
+
+  const handleRequestPermission = async () => {
+    await requestNotificationPermission();
+    // After the promise resolves, Notification.permission will be updated.
+    if (Notification.permission === 'granted') {
+        toast.success('Notifications enabled!');
+        new Notification('RetailDream Notifications', {
+            body: 'You will now receive notifications for new messages.',
+            icon: '/favicon.ico',
+        });
+    } else if (Notification.permission === 'denied') {
+        toast.error('Notifications permission was denied. You can change this in your browser settings.');
+    }
   };
 
   return (
@@ -84,6 +100,18 @@ const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  {permission === 'default' && (
+                    <DropdownMenuItem onClick={handleRequestPermission} className="cursor-pointer">
+                      <Bell className="mr-2 h-4 w-4" />
+                      Enable Notifications
+                    </DropdownMenuItem>
+                  )}
+                   {permission === 'granted' && (
+                    <DropdownMenuItem disabled>
+                      <BellRing className="mr-2 h-4 w-4" />
+                      <span>Notifications Enabled</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     Log out

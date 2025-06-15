@@ -2,7 +2,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useNotifications } from './useNotifications';
 
 const fetchUnreadCounts = async (userId: string): Promise<Record<string, number>> => {
     const { data, error } = await supabase
@@ -31,6 +32,8 @@ const fetchUnreadCounts = async (userId: string): Promise<Record<string, number>
 export const useUnreadCounts = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const { permission, sendNotification } = useNotifications();
+    const prevTotalUnreadCount = useRef<number>();
 
     const queryKey = ['unreadCounts', user?.id];
     const { data: unreadCounts, ...queryResult } = useQuery({
@@ -59,6 +62,27 @@ export const useUnreadCounts = () => {
     }, [user, queryClient, queryKey]);
 
     const totalUnreadCount = unreadCounts ? Object.values(unreadCounts).reduce((sum, count) => sum + count, 0) : 0;
+
+    useEffect(() => {
+        if (prevTotalUnreadCount.current === undefined) {
+            prevTotalUnreadCount.current = totalUnreadCount;
+            return;
+        }
+
+        if (
+          permission === 'granted' &&
+          document.visibilityState !== 'visible' &&
+          totalUnreadCount > prevTotalUnreadCount.current
+        ) {
+          const newMessages = totalUnreadCount - prevTotalUnreadCount.current;
+          sendNotification('New Message', {
+            body: `You have ${newMessages} new message(s).`,
+            icon: '/favicon.ico',
+          });
+        }
+        
+        prevTotalUnreadCount.current = totalUnreadCount;
+      }, [totalUnreadCount, permission, sendNotification]);
 
     return { unreadCounts, totalUnreadCount, ...queryResult };
 };
