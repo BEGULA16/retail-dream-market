@@ -1,11 +1,10 @@
-
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import products from "@/data/products.json";
 import { Input } from "@/components/ui/input";
-import { Search, MessageSquare } from "lucide-react";
+import { Search, MessageSquare, Store } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -18,6 +17,15 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import SellForm from "@/components/SellForm";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -112,16 +120,35 @@ const Index = () => {
             <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Our Products
             </h1>
-            <Button asChild className="relative">
-              <Link to="/chat">
-                <MessageSquare /> Go to Chat
-                {totalUnreadCount > 0 && (
-                  <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] flex items-center justify-center rounded-full p-1 text-xs">
-                    {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
-                  </Badge>
-                )}
-              </Link>
-            </Button>
+            <div className="flex items-center gap-4">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Store className="mr-2 h-4 w-4" /> Sell Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>List an item for sale</DialogTitle>
+                    <DialogDescription>
+                      Fill out the details below to list your item on the marketplace.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <SellForm />
+                </DialogContent>
+              </Dialog>
+
+              <Button asChild className="relative">
+                <Link to="/chat">
+                  <MessageSquare /> Go to Chat
+                  {totalUnreadCount > 0 && (
+                    <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] flex items-center justify-center rounded-full p-1 text-xs">
+                      {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                    </Badge>
+                  )}
+                </Link>
+              </Button>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {filteredProducts.map((product) => (
