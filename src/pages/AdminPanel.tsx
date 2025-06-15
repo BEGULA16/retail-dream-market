@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Ban, Badge as BadgeIcon, User } from 'lucide-react';
+import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,10 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const fetchUsers = async (): Promise<Profile[]> => {
-    // We are now fetching created_at and badge as well.
+    // We are now fetching created_at, badge, and banned_until as well.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, is_banned, created_at, badge');
+        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until');
     
     if (error) {
         console.error("Error fetching users:", error);
@@ -38,14 +38,16 @@ const AdminPanel = () => {
     });
 
     const [isBadgeDialogOpen, setIsBadgeDialogOpen] = useState(false);
+    const [isRestrictDialogOpen, setIsRestrictDialogOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
     const [badgeText, setBadgeText] = useState('');
+    const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
         mutationFn: async ({ userId, newBanStatus }: { userId: string, newBanStatus: boolean }) => {
             const { error } = await supabase
                 .from('profiles')
-                .update({ is_banned: newBanStatus })
+                .update({ is_banned: newBanStatus, banned_until: null }) // Unbanning clears any restriction
                 .eq('id', userId);
             
             if (error) {
@@ -53,7 +55,8 @@ const AdminPanel = () => {
             }
         },
         onSuccess: (_, { newBanStatus }) => {
-            toast.success(`User has been ${newBanStatus ? 'banned' : 'unbanned'}.`);
+            const message = newBanStatus ? 'User has been permanently banned.' : 'User has been unbanned.';
+            toast.success(message);
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
         onError: (error: Error) => {
@@ -82,6 +85,32 @@ const AdminPanel = () => {
         }
     });
 
+    const { mutate: restrictUser, isPending: isRestrictingUser } = useMutation({
+        mutationFn: async ({ userId, hours }: { userId: string; hours: number }) => {
+            if (hours <= 0) {
+                throw new Error("Restriction duration must be positive.");
+            }
+            const bannedUntil = new Date();
+            bannedUntil.setHours(bannedUntil.getHours() + hours);
+    
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_banned: true, banned_until: bannedUntil.toISOString() })
+                .eq('id', userId);
+            
+            if (error) { throw new Error(error.message); }
+        },
+        onSuccess: () => {
+            toast.success("User has been restricted.");
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            setIsRestrictDialogOpen(false);
+            setRestrictionDuration('');
+        },
+        onError: (error: Error) => {
+            toast.error(`Failed to restrict user: ${error.message}`);
+        }
+    });
+
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
         toggleBan({ userId: user.id, newBanStatus: !user.is_banned });
@@ -93,9 +122,25 @@ const AdminPanel = () => {
         setIsBadgeDialogOpen(true);
     };
 
+    const handleOpenRestrictDialog = (user: Profile) => {
+        setSelectedUser(user);
+        setRestrictionDuration('');
+        setIsRestrictDialogOpen(true);
+    };
+
     const handleUpdateBadge = () => {
         if (!selectedUser?.id) return;
         updateBadge({ userId: selectedUser.id, badge: badgeText });
+    };
+    
+    const handleRestrictUser = () => {
+        if (!selectedUser?.id || !restrictionDuration) return;
+        const hours = parseInt(restrictionDuration, 10);
+        if (isNaN(hours) || hours <= 0) {
+            toast.error("Please enter a valid, positive number of hours.");
+            return;
+        }
+        restrictUser({ userId: selectedUser.id, hours });
     };
     
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
@@ -141,10 +186,18 @@ const AdminPanel = () => {
                                                     <AvatarImage src={user.avatar_url ?? undefined} alt={user.username} />
                                                     <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
                                                 </Avatar>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-col items-start gap-1">
                                                     <span className={`font-medium ${user.is_banned ? 'line-through' : ''}`}>{user.username}</span>
-                                                    {user.badge && <Badge variant="secondary">{user.badge}</Badge>}
-                                                    {user.is_banned && <Badge variant="destructive">Banned</Badge>}
+                                                    <div className="flex items-center gap-2">
+                                                        {user.badge && <Badge variant="secondary">{user.badge}</Badge>}
+                                                        {user.is_banned && (
+                                                            <Badge variant="destructive">
+                                                                {user.banned_until && new Date(user.banned_until) > new Date()
+                                                                    ? `Restricted (ends ${formatDistanceToNow(new Date(user.banned_until), { addSuffix: true })})`
+                                                                    : 'Banned'}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -158,13 +211,24 @@ const AdminPanel = () => {
                                                     size="icon" 
                                                     onClick={() => handleToggleBan(user)}
                                                     disabled={isTogglingBan}
+                                                    title={user.is_banned ? "Unban User" : "Permanently Ban User"}
                                                 >
                                                     {user.is_banned ? <User className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
                                                 </Button>
                                                 <Button 
                                                     variant="outline" 
                                                     size="icon" 
+                                                    onClick={() => handleOpenRestrictDialog(user)}
+                                                    disabled={user.is_banned}
+                                                    title="Temporarily Ban User"
+                                                >
+                                                    <TimerOff className="h-4 w-4" />
+                                                </Button>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
                                                     onClick={() => handleOpenBadgeDialog(user)}
+                                                    title="Edit User Badge"
                                                 >
                                                     <BadgeIcon className="h-4 w-4" />
                                                 </Button>
@@ -198,6 +262,33 @@ const AdminPanel = () => {
                          <Button variant="outline" onClick={() => setIsBadgeDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleUpdateBadge} disabled={isUpdatingBadge}>
                             {isUpdatingBadge ? 'Saving...' : 'Save Badge'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isRestrictDialogOpen} onOpenChange={setIsRestrictDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Restrict {selectedUser?.username}</DialogTitle>
+                        <DialogDescription>
+                            Enter the duration in hours to restrict this user. This will be a temporary ban.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <Label htmlFor="duration-hours">Duration (in hours)</Label>
+                        <Input
+                            id="duration-hours"
+                            type="number"
+                            value={restrictionDuration}
+                            onChange={(e) => setRestrictionDuration(e.target.value)}
+                            placeholder="e.g., 24"
+                            min="1"
+                        />
+                    </div>
+                    <DialogFooter>
+                         <Button variant="outline" onClick={() => setIsRestrictDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleRestrictUser} disabled={isRestrictingUser}>
+                            {isRestrictingUser ? 'Restricting...' : 'Restrict User'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
