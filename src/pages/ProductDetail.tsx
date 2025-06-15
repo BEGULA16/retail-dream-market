@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
+import Ratings from "@/components/Ratings";
 
 const fetchProduct = async (id: string): Promise<Product | null> => {
   const { data, error } = await supabase
@@ -154,6 +155,7 @@ const ProductDetail = () => {
             </Button>
           </div>
         </div>
+        <Ratings productId={product.id} />
       </main>
       <Footer />
     </div>
