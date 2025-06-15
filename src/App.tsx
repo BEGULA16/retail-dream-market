@@ -12,6 +12,7 @@ import ChatList from "./pages/ChatList";
 import Conversation from "./pages/Conversation";
 import Auth from "./pages/Auth";
 import { AuthProvider } from "./hooks/useAuth";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/chat" element={<ChatList />} />
               <Route path="/chat/:recipientId" element={<Conversation />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/profile" element={<Profile />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
@@ -45,3 +47,4 @@ const App = () => (
 );
 
 export default App;
+
