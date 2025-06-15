@@ -1,4 +1,3 @@
-
 export interface Product {
   id: number;
   name: string;
@@ -20,7 +19,6 @@ export interface Profile {
   created_at?: string;
   badge?: string | null;
   is_banned?: boolean;
-  banned_until?: string | null;
   is_admin?: boolean;
   is_seller?: boolean;
 }

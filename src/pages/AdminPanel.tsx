@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff, UserCheck } from 'lucide-react';
+import { ArrowLeft, Ban, Badge as BadgeIcon, UserCheck } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 const fetchUsers = async (): Promise<Profile[]> => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until');
+        .select('id, username, avatar_url, is_banned, created_at, badge');
     
     if (error) {
         console.error("Error fetching users:", error);
@@ -39,24 +39,25 @@ const AdminPanel = () => {
     });
 
     const [isBadgeDialogOpen, setIsBadgeDialogOpen] = useState(false);
-    const [isRestrictDialogOpen, setIsRestrictDialogOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
     const [badgeText, setBadgeText] = useState('');
-    const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
     const { mutate: permanentBan, isPending: isBanningUser } = useMutation({
         mutationFn: async (userId: string) => {
             const { error } = await supabase
                 .from('profiles')
-                .update({ is_banned: true, banned_until: null })
+                .update({ is_banned: true })
                 .eq('id', userId);
-            if (error) throw new Error(error.message);
+            if (error) {
+                console.error('Error banning user:', error);
+                throw new Error(error.message);
+            }
             return userId;
         },
         onSuccess: (userId) => {
             toast.success('User has been permanently banned.');
             queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) => 
-                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: true, banned_until: null } : user) : []
+                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: true } : user) : []
             );
         },
         onError: (error: Error) => {
@@ -68,7 +69,7 @@ const AdminPanel = () => {
         mutationFn: async (userId: string) => {
             const { error } = await supabase
                 .from('profiles')
-                .update({ is_banned: false, banned_until: null })
+                .update({ is_banned: false })
                 .eq('id', userId);
             if (error) throw new Error(error.message);
             return userId;
@@ -76,7 +77,7 @@ const AdminPanel = () => {
         onSuccess: (userId) => {
             toast.success('User restriction has been removed.');
             queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) => 
-                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: false, banned_until: null } : user) : []
+                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: false } : user) : []
             );
         },
         onError: (error: Error) => {
@@ -109,61 +110,15 @@ const AdminPanel = () => {
         },
     });
 
-    const { mutate: restrictUser, isPending: isRestrictingUser } = useMutation({
-        mutationFn: async ({ userId, hours }: { userId: string; hours: number }) => {
-            if (hours <= 0) {
-                throw new Error("Restriction duration must be positive.");
-            }
-            const bannedUntil = new Date();
-            bannedUntil.setHours(bannedUntil.getHours() + hours);
-            const bannedUntilISO = bannedUntil.toISOString();
-    
-            const { error } = await supabase
-                .from('profiles')
-                .update({ is_banned: true, banned_until: bannedUntilISO })
-                .eq('id', userId);
-            
-            if (error) { throw new Error(error.message); }
-            return { userId, banned_until: bannedUntilISO };
-        },
-        onSuccess: ({ userId, banned_until }) => {
-            toast.success("User has been restricted.");
-            setIsRestrictDialogOpen(false);
-            setRestrictionDuration('');
-            queryClient.setQueryData(['adminUsers'], (oldData: Profile[] | undefined) =>
-                oldData ? oldData.map(user => user.id === userId ? { ...user, is_banned: true, banned_until } : user) : []
-            );
-        },
-        onError: (error: Error) => {
-            toast.error(`Failed to restrict user: ${error.message}`);
-        },
-    });
-
     const handleOpenBadgeDialog = (user: Profile) => {
         setSelectedUser(user);
         setBadgeText(user.badge || '');
         setIsBadgeDialogOpen(true);
     };
 
-    const handleOpenRestrictDialog = (user: Profile) => {
-        setSelectedUser(user);
-        setRestrictionDuration('');
-        setIsRestrictDialogOpen(true);
-    };
-
     const handleUpdateBadge = () => {
         if (!selectedUser?.id) return;
         updateBadge({ userId: selectedUser.id, badge: badgeText });
-    };
-    
-    const handleRestrictUser = () => {
-        if (!selectedUser?.id || !restrictionDuration) return;
-        const hours = parseInt(restrictionDuration, 10);
-        if (isNaN(hours) || hours <= 0) {
-            toast.error("Please enter a valid, positive number of hours.");
-            return;
-        }
-        restrictUser({ userId: selectedUser.id, hours });
     };
     
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
@@ -217,9 +172,7 @@ const AdminPanel = () => {
                                                         {user.badge && <Badge variant="secondary">{user.badge}</Badge>}
                                                         {user.is_banned && (
                                                             <Badge variant="destructive">
-                                                                {user.banned_until && new Date(user.banned_until) > new Date()
-                                                                    ? `Restricted (ends ${formatDistanceToNow(new Date(user.banned_until), { addSuffix: true })})`
-                                                                    : 'Banned'}
+                                                                Banned
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -242,26 +195,15 @@ const AdminPanel = () => {
                                                         <UserCheck className="h-4 w-4" />
                                                     </Button>
                                                 ) : (
-                                                    <>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={() => permanentBan(user.id)}
-                                                            disabled={isBanningUser || isSelf}
-                                                            title={isSelf ? "You cannot modify your own status" : "Permanently Ban User"}
-                                                        >
-                                                            <Ban className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button 
-                                                            variant="outline" 
-                                                            size="icon" 
-                                                            onClick={() => handleOpenRestrictDialog(user)}
-                                                            disabled={isSelf}
-                                                            title={isSelf ? "You cannot modify your own status" : "Temporarily Restrict User"}
-                                                        >
-                                                            <TimerOff className="h-4 w-4" />
-                                                        </Button>
-                                                    </>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => permanentBan(user.id)}
+                                                        disabled={isBanningUser || isSelf}
+                                                        title={isSelf ? "You cannot modify your own status" : "Permanently Ban User"}
+                                                    >
+                                                        <Ban className="h-4 w-4" />
+                                                    </Button>
                                                 )}
                                                 <Button 
                                                     variant="outline" 
@@ -302,33 +244,6 @@ const AdminPanel = () => {
                          <Button variant="outline" onClick={() => setIsBadgeDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleUpdateBadge} disabled={isUpdatingBadge}>
                             {isUpdatingBadge ? 'Saving...' : 'Save Badge'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            <Dialog open={isRestrictDialogOpen} onOpenChange={setIsRestrictDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Restrict {selectedUser?.username}</DialogTitle>
-                        <DialogDescription>
-                            Enter the duration in hours to restrict this user. This will be a temporary ban.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Label htmlFor="duration-hours">Duration (in hours)</Label>
-                        <Input
-                            id="duration-hours"
-                            type="number"
-                            value={restrictionDuration}
-                            onChange={(e) => setRestrictionDuration(e.target.value)}
-                            placeholder="e.g., 24"
-                            min="1"
-                        />
-                    </div>
-                    <DialogFooter>
-                         <Button variant="outline" onClick={() => setIsRestrictDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleRestrictUser} disabled={isRestrictingUser}>
-                            {isRestrictingUser ? 'Restricting...' : 'Restrict User'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

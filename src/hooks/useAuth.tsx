@@ -92,17 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, fetchProfile]);
 
-  // Auto-unban logic for expired temporary bans
-  useEffect(() => {
-    if (profile?.is_banned && profile.banned_until && new Date(profile.banned_until) < new Date()) {
-      const unbanUser = async () => {
-        await supabase.from('profiles').update({ is_banned: false, banned_until: null }).eq('id', profile.id);
-        await refreshAuth();
-      };
-      unbanUser();
-    }
-  }, [profile, refreshAuth]);
-
   // Fallback polling mechanism to check for profile status changes (e.g., bans)
   useEffect(() => {
     if (!user) return;
@@ -175,33 +164,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, queryClient, toast]);
 
   if (profile?.is_banned) {
-    const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
-    
     // You can change the appeal link below to your desired URL.
     const appealLink = 'https://google.com';
 
-    if (isRestrictionActive) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
-                <h1 className="text-4xl font-bold text-destructive">
-                  {profile.banned_until ? 'Account Restricted' : 'Account Banned'}
-                </h1>
-                <p className="mt-4 text-lg">You are restricted from accessing this service.</p>
-                {profile.banned_until ? (
-                    <p className="mt-2 text-muted-foreground">
-                        Your restriction expires {formatDistanceToNow(new Date(profile.banned_until), { addSuffix: true })}.
-                    </p>
-                ) : (
-                    <p className="mt-2 text-muted-foreground">This ban is permanent.</p>
-                )}
-                 <Button asChild className="mt-8">
-                  <a href={appealLink} target="_blank" rel="noopener noreferrer">
-                    Appeal
-                  </a>
-                </Button>
-            </div>
-        );
-    }
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
+            <h1 className="text-4xl font-bold text-destructive">
+              Account Banned
+            </h1>
+            <p className="mt-4 text-lg">You are restricted from accessing this service.</p>
+            <p className="mt-2 text-muted-foreground">This ban is permanent.</p>
+             <Button asChild className="mt-8">
+              <a href={appealLink} target="_blank" rel="noopener noreferrer">
+                Appeal
+              </a>
+            </Button>
+        </div>
+    );
   }
 
   return (
