@@ -18,14 +18,14 @@ interface Message {
   content: string | null;
   user_id: string;
   profiles: {
-    email: string | null;
+    username: string | null;
   } | null;
 }
 
 const fetchMessages = async (): Promise<Message[]> => {
   const { data, error } = await supabase
     .from('messages')
-    .select('*, profiles(email)')
+    .select('*, profiles!user_id(username)')
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -131,15 +131,16 @@ const Chat = () => {
             {isLoading && <p className="text-center text-muted-foreground">Loading messages...</p>}
             {messages?.map((message) => {
               const isSender = message.user_id === user.id;
+              const username = message.profiles?.username || 'User';
               return (
                 <div key={message.id} className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
                   {!isSender && (
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback>{message.profiles?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
+                      <AvatarFallback>{username[0].toUpperCase()}</AvatarFallback>
                     </Avatar>
                   )}
                   <div className={`p-3 rounded-lg max-w-xs ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                    {!isSender && <p className="text-xs font-bold mb-1">{message.profiles?.email}</p>}
+                    {!isSender && <p className="text-xs font-bold mb-1">{username}</p>}
                     <p>{message.content}</p>
                   </div>
                 </div>

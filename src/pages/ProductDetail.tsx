@@ -1,5 +1,5 @@
 
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import products from "@/data/products.json";
@@ -8,12 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import NotFound from "./NotFound";
+import { useAuth } from "@/hooks/useAuth";
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const product: Product | undefined = products.find(
     (p) => p.id === Number(id)
   );
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChatSeller = () => {
+    if (user) {
+      navigate("/chat");
+    } else {
+      navigate("/auth");
+    }
+  };
 
   if (!product) {
     return <NotFound />;
@@ -52,8 +63,8 @@ const ProductDetail = () => {
                     </p>
                 )}
             </div>
-            <Button size="lg" disabled={!product.stock || product.stock <= 0}>
-                Place order
+            <Button size="lg" onClick={handleChatSeller}>
+                Chat seller
             </Button>
           </div>
         </div>

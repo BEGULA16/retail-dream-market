@@ -1,8 +1,9 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Product } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ProductCardProps {
   product: Product;
@@ -10,6 +11,16 @@ interface ProductCardProps {
 
 const ProductCard = ({ product }: ProductCardProps) => {
   const isOutOfStock = !product.stock || product.stock <= 0;
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChatSeller = () => {
+    if (user) {
+      navigate('/chat');
+    } else {
+      navigate('/auth');
+    }
+  };
 
   return (
     <div
@@ -51,8 +62,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
           )}
         </div>
         <div className="mt-auto pt-4">
-          <Button className="w-full" disabled={isOutOfStock}>
-            Place order
+          <Button className="w-full" onClick={handleChatSeller}>
+            Chat seller
           </Button>
         </div>
       </div>
