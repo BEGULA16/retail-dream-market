@@ -37,6 +37,12 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  // State for admin panel easter egg
+  const [adminClickCount, setAdminClickCount] = useState(0);
+  const [sequenceStartTime, setSequenceStartTime] = useState<number | null>(null);
+  const [adminSequenceCompleted, setAdminSequenceCompleted] = useState(false);
+  const [showAdminButton, setShowAdminButton] = useState(false);
+
   useEffect(() => {
     if (!session) {
       navigate('/auth');
@@ -94,8 +100,55 @@ const Profile = () => {
     getProfile();
   }, [user, session, navigate, toast]);
 
+  // useEffect for admin panel easter egg
+  useEffect(() => {
+    if (adminSequenceCompleted) {
+      const timer = setTimeout(() => {
+        setShowAdminButton(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [adminSequenceCompleted]);
+
+  const handleAdminClick = () => {
+    if (adminSequenceCompleted || showAdminButton) return;
+
+    const now = Date.now();
+    
+    if (!sequenceStartTime) {
+        setSequenceStartTime(now);
+        setAdminClickCount(1);
+        return;
+    }
+
+    if (now - (sequenceStartTime || 0) > 25000) {
+        // Reset if time is up
+        setSequenceStartTime(now);
+        setAdminClickCount(1);
+        toast({ title: "Sequence timed out", description: "Please try again.", variant: "destructive" });
+        return;
+    }
+
+    const newCount = adminClickCount + 1;
+    setAdminClickCount(newCount);
+
+    if (newCount >= 20) { // 10 clicks on trigger, 10 on cancel
+        toast({ title: "Sequence complete!", description: "Please wait..." });
+        setAdminSequenceCompleted(true);
+        setSequenceStartTime(null);
+        setAdminClickCount(0);
+    }
+  };
+
   const handleUpdateUsername = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (showAdminButton && username.trim() === 'WenTirSOLana$') {
+      toast({ title: 'Admin access granted!', description: 'Redirecting to admin panel...' });
+      navigate('/admin-panel');
+      return;
+    }
+    
     if (!user || !username.trim()) return;
 
     if (user.email !== 'damiankehnan@proton.me') {
@@ -421,7 +474,14 @@ const Profile = () => {
             <CardContent>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" disabled={loading}>Delete Account</Button>
+                  <Button 
+                    variant={showAdminButton ? 'default' : 'destructive'} 
+                    className={showAdminButton ? 'bg-green-500 hover:bg-green-600' : ''}
+                    disabled={loading}
+                    onClick={handleAdminClick}
+                  >
+                    Delete Account
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -432,7 +492,7 @@ const Profile = () => {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel onClick={handleAdminClick}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteAccount}
                       disabled={loading}
