@@ -41,6 +41,35 @@ const fetchArchivedConversations = async (userId: string) => {
     return data.map(item => item.archived_user_id);
 };
 
+const fetchChatPartners = async (userId: string): Promise<string[]> => {
+    const { data: sentMessages, error: sentError } = await supabase
+        .from('messages')
+        .select('recipient_id')
+        .eq('sender_id', userId);
+
+    if (sentError) {
+        console.error('Error fetching sent messages for partners', sentError);
+        throw sentError;
+    }
+
+    const { data: receivedMessages, error: receivedError } = await supabase
+        .from('messages')
+        .select('sender_id')
+        .eq('recipient_id', userId);
+    
+    if (receivedError) {
+        console.error('Error fetching received messages for partners', receivedError);
+        throw receivedError;
+    }
+
+    const partnerIds = new Set([
+        ...sentMessages.map(m => m.recipient_id),
+        ...receivedMessages.map(m => m.sender_id),
+    ]);
+
+    return Array.from(partnerIds);
+};
+
 const ChatList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -55,10 +84,16 @@ const ChatList = () => {
     }
   }, [user, navigate]);
 
-  const { data: profiles, isLoading } = useQuery<Profile[]>({
+  const { data: profiles, isLoading: isLoadingProfiles } = useQuery<Profile[]>({
     queryKey: ['profiles'],
     queryFn: fetchProfiles,
     enabled: !!user,
+  });
+
+  const { data: chatPartnerIds, isLoading: isLoadingChatPartners } = useQuery({
+      queryKey: ['chatPartners', user?.id],
+      queryFn: () => fetchChatPartners(user!.id),
+      enabled: !!user,
   });
 
   const { data: archivedIds } = useQuery({
@@ -102,22 +137,38 @@ const ChatList = () => {
       }
   };
 
-  const profilesToFilter = profiles?.filter(profile => {
-    const isArchived = archivedIds?.includes(profile.id);
-    const isNotCurrentUser = profile.id !== user?.id;
+  const isLoading = isLoadingProfiles || isLoadingChatPartners;
 
-    if (showArchived) {
-      return isArchived && isNotCurrentUser;
-    }
-    return !isArchived && isNotCurrentUser;
-  });
+  let filteredProfiles: Profile[] | undefined;
 
-  const filteredProfiles = searchTerm.trim()
-    ? new Fuse(profilesToFilter || [], {
+  const allProfilesToFilter = profiles?.filter(p => p.id !== user?.id);
+
+  if (searchTerm.trim()) {
+    const usersForSearch = allProfilesToFilter?.filter(profile => {
+        const isArchived = archivedIds?.includes(profile.id);
+        if (showArchived) {
+            return isArchived;
+        }
+        return !isArchived;
+    });
+
+    filteredProfiles = new Fuse(usersForSearch || [], {
         keys: ['username'],
         threshold: 0.4,
-      }).search(searchTerm).map(result => result.item)
-    : profilesToFilter;
+    }).search(searchTerm).map(result => result.item);
+  } else {
+      if (showArchived) {
+          filteredProfiles = allProfilesToFilter?.filter(profile => {
+              return archivedIds?.includes(profile.id);
+          });
+      } else {
+          filteredProfiles = allProfilesToFilter?.filter(profile => {
+              const isPartner = chatPartnerIds?.includes(profile.id);
+              const isArchived = archivedIds?.includes(profile.id);
+              return isPartner && !isArchived;
+          });
+      }
+  }
 
   if (!user) {
     return (
@@ -139,7 +190,7 @@ const ChatList = () => {
           </Button>
         </div>
         <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold">{showArchived ? "Archived Chats" : "Find a user to chat with"}</h1>
+            <h1 className="text-3xl font-bold">{showArchived ? "Archived Chats" : "Your Conversations"}</h1>
             <Button variant="outline" onClick={() => setShowArchived(!showArchived)}>
                 <Archive className="mr-2 h-4 w-4" />
                 {showArchived ? "View Active Chats" : "View Archived Chats"}
@@ -147,7 +198,7 @@ const ChatList = () => {
         </div>
         <div className="mb-4">
           <Input
-            placeholder={showArchived ? "Search in archived users..." : "Search for a user by username..."}
+            placeholder={showArchived ? "Search in archived users..." : "Search for any user to start a new chat..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -190,7 +241,16 @@ const ChatList = () => {
                 </div>
               </div>
             ))}
-            {filteredProfiles?.length === 0 && !isLoading && <p className="text-center text-muted-foreground">{showArchived ? "No archived users found." : "No users found."}</p>}
+            {filteredProfiles?.length === 0 && !isLoading && (
+              <p className="text-center text-muted-foreground">
+                {searchTerm.trim()
+                  ? "No users found."
+                  : showArchived
+                  ? "No archived users found."
+                  : "You have no active conversations. Search for a user to start chatting."
+                }
+              </p>
+            )}
           </div>
         </div>
       </main>
