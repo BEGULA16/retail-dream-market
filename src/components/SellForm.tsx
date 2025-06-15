@@ -58,11 +58,11 @@ export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => 
         "You can upload a maximum of 5 images."
       )
       .refine(
-        (files) => !files || files.length === 0 || Array.from(files).every((file) => file.size <= MAX_FILE_SIZE),
+        (files) => !files || files.length === 0 || Array.from(files).every((file: any) => file.size <= MAX_FILE_SIZE),
         `Max file size is 30MB per image.`
       )
       .refine(
-        (files) => !files || files.length === 0 || Array.from(files).every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
+        (files) => !files || files.length === 0 || Array.from(files).every((file: any) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
         ".jpg, .jpeg, .png and .webp files are accepted."
       ),
     info: z.string().min(10, {
