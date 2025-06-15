@@ -17,23 +17,52 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from './ui/skeleton';
 
 const fetchProductRatings = async (productId: number): Promise<Rating[]> => {
-  const { data, error } = await supabase
+  // 1. Fetch ratings
+  const { data: ratingsData, error: ratingsError } = await supabase
     .from('ratings')
-    .select('*, profiles:user_id(username, avatar_url)')
+    .select('*')
     .eq('product_id', productId)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    // PostgREST returns a 406 error if the foreign key join is invalid, but tanstack-query will retry.
-    // To avoid console spam on what is a data issue (missing profile), we'll just log it once.
-    if (error.code !== 'PGRST116') { // PGRST116 is "relation does not exist" which can happen if profile is missing for a user
-        console.error("Error fetching ratings:", error);
-    }
-    // Return data even if some profiles are missing.
-    // The select with the explicit join column will return null for `profiles` if it can't be joined.
-    return (data || []) as Rating[];
+  if (ratingsError) {
+    console.error("Error fetching ratings:", ratingsError);
+    throw new Error(ratingsError.message);
   }
-  return data as Rating[];
+
+  if (!ratingsData || ratingsData.length === 0) {
+    return [];
+  }
+
+  // 2. Get unique user IDs, filtering out any nulls
+  const userIds = [...new Set(ratingsData.map(r => r.user_id).filter(Boolean as any))];
+
+  // If no users to fetch profiles for, return ratings as is (with profiles: null)
+  if (userIds.length === 0) {
+    return ratingsData.map(r => ({ ...r, profiles: null })) as Rating[];
+  }
+
+  // 3. Fetch corresponding profiles
+  const { data: profilesData, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds);
+  
+  if (profilesError) {
+    console.error("Error fetching profiles:", profilesError);
+    // Fail gracefully, return ratings without profile info
+    return ratingsData.map(r => ({ ...r, profiles: null })) as Rating[];
+  }
+
+  // 4. Create a map for easy lookup
+  const profilesMap = new Map(profilesData.map(p => [p.id, p]));
+
+  // 5. Combine ratings with profiles
+  const combinedData = ratingsData.map(rating => ({
+    ...rating,
+    profiles: rating.user_id ? profilesMap.get(rating.user_id) ?? null : null
+  }));
+
+  return combinedData as Rating[];
 };
 
 const Ratings = ({ productId }: { productId: number }) => {
