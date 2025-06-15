@@ -111,6 +111,20 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const allowedDomains = ['proton.me', 'protonmail.com', 'gmail.com', 'yahoo.com', 'google.com'];
+    const emailDomain = email.split('@')[1];
+
+    if (!emailDomain || !allowedDomains.includes(emailDomain.toLowerCase())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email Domain",
+        description: "Please use an email from a trusted provider like Proton, Google, or Yahoo.",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
