@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,25 +13,13 @@ import { Profile } from '@/types';
 import { toast } from 'sonner';
 
 const fetchUsers = async (): Promise<Profile[]> => {
-    // Attempt to fetch `updated_at` and alias it as `created_at` based on Supabase hint.
+    // We are fetching only the columns that are known to exist to avoid errors.
+    // 'created_at' and 'badge' seem to be missing from your 'profiles' table.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, created_at:updated_at, badge, is_banned');
+        .select('id, username, avatar_url, is_banned');
     
     if (error) {
-        // If aliasing `updated_at` fails, it could be that neither date column exists.
-        // Fallback to fetching without a date column.
-        if (error.message.includes('column') && (error.message.includes('updated_at') || error.message.includes('created_at'))) {
-            console.warn("Date column ('created_at' or 'updated_at') not found in 'profiles'. Omitting from query.");
-            const { data: fallbackData, error: fallbackError } = await supabase
-                .from('profiles')
-                .select('id, username, avatar_url, badge, is_banned');
-            if (fallbackError) {
-                console.error("Error fetching users (fallback):", fallbackError);
-                throw new Error(fallbackError.message);
-            }
-            return fallbackData || [];
-        }
         console.error("Error fetching users:", error);
         throw new Error(error.message);
     }
