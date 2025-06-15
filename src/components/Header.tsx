@@ -14,10 +14,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from '@/lib/supabase';
 import { LogOut, MessageSquare, User as UserIcon } from 'lucide-react';
+import { useUnreadCounts } from '@/hooks/useUnreadCounts';
+import { Badge } from '@/components/ui/badge';
 
 const Header = () => {
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const { totalUnreadCount } = useUnreadCounts();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -68,7 +71,17 @@ const Header = () => {
                     <Link to="/profile"><UserIcon className="mr-2 h-4 w-4" />Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link to="/chat"><MessageSquare className="mr-2 h-4 w-4" />Messages</Link>
+                    <Link to="/chat" className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Messages</span>
+                      </div>
+                      {totalUnreadCount > 0 && (
+                        <Badge variant="destructive" className="h-5 min-w-[1.25rem] flex items-center justify-center rounded-full p-1 text-xs">
+                          {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                        </Badge>
+                      )}
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
@@ -90,4 +103,3 @@ const Header = () => {
 };
 
 export default Header;
-

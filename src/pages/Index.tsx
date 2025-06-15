@@ -16,11 +16,14 @@ import {
 import Fuse from "fuse.js";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useUnreadCounts } from "@/hooks/useUnreadCounts";
+import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("default");
+  const { totalUnreadCount } = useUnreadCounts();
 
   const categories = useMemo(() => {
     const allCategories = products.map((p) => p.category);
@@ -109,9 +112,14 @@ const Index = () => {
             <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Our Products
             </h1>
-            <Button asChild>
+            <Button asChild className="relative">
               <Link to="/chat">
-                <MessageSquare className="mr-2" /> Go to Chat
+                <MessageSquare /> Go to Chat
+                {totalUnreadCount > 0 && (
+                  <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] flex items-center justify-center rounded-full p-1 text-xs">
+                    {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                  </Badge>
+                )}
               </Link>
             </Button>
           </div>

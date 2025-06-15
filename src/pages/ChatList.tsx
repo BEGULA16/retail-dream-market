@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 
 interface Profile {
   id: string;
@@ -44,26 +45,6 @@ const fetchArchivedConversations = async (userId: string) => {
     return data.map(item => item.archived_user_id);
 };
 
-const fetchUnreadCounts = async (userId: string): Promise<Record<string, number>> => {
-    const { data, error } = await supabase
-        .from('messages')
-        .select('sender_id')
-        .eq('recipient_id', userId)
-        .eq('is_read', false);
-
-    if (error) {
-        console.error('Error fetching unread counts', error);
-        throw error;
-    }
-
-    const counts = data.reduce((acc, msg) => {
-        acc[msg.sender_id] = (acc[msg.sender_id] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
-
-    return counts;
-};
-
 const ChatList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -90,42 +71,35 @@ const ChatList = () => {
       enabled: !!user,
   });
 
-  const { data: unreadCounts } = useQuery({
-      queryKey: ['unreadCounts', user?.id],
-      queryFn: () => fetchUnreadCounts(user!.id),
-      enabled: !!user,
-  });
+  const { unreadCounts } = useUnreadCounts();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !archivedIds) return;
 
     const handleNewMessage = async (payload: any) => {
       const newMessage = payload.new as { recipient_id: string; sender_id: string; };
       
-      if (newMessage.recipient_id === user.id) {
-        if (archivedIds?.includes(newMessage.sender_id)) {
-          const { error } = await supabase
-            .from('archived_conversations')
-            .delete()
-            .match({ user_id: user.id, archived_user_id: newMessage.sender_id });
+      if (newMessage.recipient_id === user.id && archivedIds.includes(newMessage.sender_id)) {
+        const { error } = await supabase
+          .from('archived_conversations')
+          .delete()
+          .match({ user_id: user.id, archived_user_id: newMessage.sender_id });
 
-          if (!error) {
-            toast({
-              title: "Message from archived chat",
-              description: "The conversation has been moved to your inbox.",
-            });
-            queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
-          }
+        if (!error) {
+          toast({
+            title: "Message from archived chat",
+            description: "The conversation has been moved to your inbox.",
+          });
+          queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
         }
-        queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
       }
     };
 
     const channel = supabase
-      .channel('realtime-chatlist')
+      .channel('realtime-chatlist-unarchive')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
         handleNewMessage
       )
       .subscribe();
@@ -224,7 +198,7 @@ const ChatList = () => {
                   </Avatar>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{profile.username}</span>
-                    {unreadCounts?.[profile.id] && (
+                    {unreadCounts?.[profile.id] && !showArchived && (
                         <Badge variant="destructive">{unreadCounts[profile.id]}</Badge>
                     )}
                   </div>
