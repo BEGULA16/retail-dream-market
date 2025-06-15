@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -48,26 +49,18 @@ export const useMessages = (recipientId: string) => {
   useEffect(() => {
     if (!senderId || !recipientId) return;
 
-    const handlePostgresChanges = (payload: any) => {
-        const changedRecord = payload.new as Message;
-        
-        // Ensure the message belongs to the current conversation
+    const handleNewMessage = (payload: any) => {
+        const newMessage = payload.new as Message;
         if (
-            !((changedRecord.sender_id === senderId && changedRecord.recipient_id === recipientId) ||
-            (changedRecord.sender_id === recipientId && changedRecord.recipient_id === senderId))
+            ((newMessage.sender_id === senderId && newMessage.recipient_id === recipientId) ||
+            (newMessage.sender_id === recipientId && newMessage.recipient_id === senderId))
         ) {
-            return;
-        }
-
-        if (payload.eventType === 'INSERT') {
             setMessages(prev => {
-                if (prev.some(m => m.id === changedRecord.id)) {
+                if (prev.some(m => m.id === newMessage.id)) {
                     return prev;
                 }
-                return [...prev, changedRecord];
+                return [...prev, newMessage];
             });
-        } else if (payload.eventType === 'UPDATE') {
-            setMessages(prev => prev.map(m => m.id === changedRecord.id ? changedRecord : m));
         }
     };
 
@@ -75,8 +68,8 @@ export const useMessages = (recipientId: string) => {
         .channel(`realtime-messages-${senderId}-${recipientId}`)
         .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'messages' },
-            handlePostgresChanges
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            handleNewMessage
         )
         .subscribe();
 
