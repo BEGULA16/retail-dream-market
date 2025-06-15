@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -96,16 +95,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [profile]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
 
     const channel = supabase
-      .channel(`realtime-messages-global-${user.id}`)
+      .channel(`realtime-unread-counts-${user.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages', filter: `or(sender_id.eq.${user.id},recipient_id.eq.${user.id})` },
+        { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
         () => {
           queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
-          queryClient.invalidateQueries({ queryKey: ['chatListProfiles', user.id] });
         }
       )
       .subscribe();
@@ -113,7 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient]);
+  }, [user, queryClient]);
 
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;

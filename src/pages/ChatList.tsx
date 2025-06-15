@@ -15,60 +15,16 @@ import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Profile } from '@/types';
 import Fuse from 'fuse.js';
 
-interface ChatListProfile extends Profile {
-  lastMessageAt?: string;
-}
+const fetchProfiles = async (): Promise<Profile[]> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url, badge');
 
-const fetchChatListProfiles = async (userId: string): Promise<ChatListProfile[]> => {
-    const { data: messages, error: messagesError } = await supabase
-        .from('messages')
-        .select('sender_id, recipient_id, created_at')
-        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
-        .order('created_at', { ascending: false });
-
-    if (messagesError) {
-        console.error('Error fetching messages for chat list:', messagesError);
-        throw messagesError;
-    }
-
-    const lastMessageTimes: Record<string, string> = {};
-
-    if (messages) {
-        for (const message of messages) {
-            const partnerId = message.sender_id === userId ? message.recipient_id : message.sender_id;
-            if (!lastMessageTimes[partnerId]) {
-                lastMessageTimes[partnerId] = message.created_at;
-            }
-        }
-    }
-    
-    const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url, badge')
-        .neq('id', userId);
-
-    if (profilesError) {
-        console.error('Error fetching profiles for chat list:', profilesError);
-        throw profilesError;
-    }
-    
-    if (!profiles) return [];
-
-    const profilesWithLastMessage: ChatListProfile[] = profiles.map(p => ({
-        ...p,
-        lastMessageAt: lastMessageTimes[p.id],
-    }));
-
-    profilesWithLastMessage.sort((a, b) => {
-        if (a.lastMessageAt && b.lastMessageAt) {
-            return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
-        }
-        if (a.lastMessageAt) return -1;
-        if (b.lastMessageAt) return 1;
-        return (a.username ?? '').localeCompare(b.username ?? '');
-    });
-    
-    return profilesWithLastMessage;
+  if (error) {
+    console.error('Error fetching profiles:', error);
+    throw new Error(error.message);
+  }
+  return (data as Profile[]) || [];
 };
 
 const fetchArchivedConversations = async (userId: string) => {
@@ -99,9 +55,9 @@ const ChatList = () => {
     }
   }, [user, navigate]);
 
-  const { data: profiles, isLoading } = useQuery<ChatListProfile[]>({
-    queryKey: ['chatListProfiles', user?.id],
-    queryFn: () => fetchChatListProfiles(user!.id),
+  const { data: profiles, isLoading } = useQuery<Profile[]>({
+    queryKey: ['profiles'],
+    queryFn: fetchProfiles,
     enabled: !!user,
   });
 
@@ -114,7 +70,7 @@ const ChatList = () => {
   const { unreadCounts } = useUnreadCounts();
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
 
     const handleNewMessage = async (payload: any) => {
       const newMessage = payload.new as { recipient_id: string; sender_id: string; };
@@ -148,7 +104,7 @@ const ChatList = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient, toast]);
+  }, [user, queryClient, toast]);
 
   const handleArchive = async (profileId: string) => {
       if (!user) return;
