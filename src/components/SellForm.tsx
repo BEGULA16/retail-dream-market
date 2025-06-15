@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -19,6 +18,11 @@ import { toast } from "@/hooks/use-toast";
 import { DialogClose } from "./ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -36,7 +40,17 @@ const formSchema = z.object({
   stock: z.coerce.number().int().positive({
     message: "Stock must be a positive number.",
   }),
-  image: z.string().url({ message: "Please enter a valid image URL." }),
+  images: z.any()
+    .refine((files): files is FileList => files instanceof FileList && files.length > 0, "At least one image is required.")
+    .refine((files): files is FileList => files.length <= 5, "You can upload a maximum of 5 images.")
+    .refine(
+      (files): files is FileList => Array.from(files).every((file) => file.size <= MAX_FILE_SIZE),
+      `Max file size is 5MB per image.`
+    )
+    .refine(
+      (files): files is FileList => Array.from(files).every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
+      ".jpg, .jpeg, .png and .webp files are accepted."
+    ),
   info: z.string().min(10, {
     message: "Info must be at least 10 characters.",
   }),
@@ -44,6 +58,9 @@ const formSchema = z.object({
 
 export function SellForm() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -52,7 +69,7 @@ export function SellForm() {
       price: "",
       category: "",
       stock: 1,
-      image: "",
+      images: undefined,
       info: "",
     },
   });
@@ -66,15 +83,75 @@ export function SellForm() {
       });
       return;
     }
+    setIsSubmitting(true);
+
+    if (user.email !== 'damiankehnan@proton.me') {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: recentProducts, error: recentError } = await supabase
+        .from('products')
+        .select('created_at', { count: 'exact' })
+        .eq('seller_id', user.id)
+        .gte('created_at', tenMinutesAgo)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (recentError) {
+        console.error("Error checking for recent products:", recentError);
+        toast({ title: "Error", description: "Could not verify selling cooldown. Please try again.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (recentProducts && recentProducts.length > 0) {
+        const lastProductDate = new Date(recentProducts[0].created_at);
+        const now = new Date();
+        const diffMinutes = (now.getTime() - lastProductDate.getTime()) / (1000 * 60);
+        if (diffMinutes < 10) {
+          toast({
+            title: "Cooldown Active",
+            description: `Please wait ${Math.ceil(10 - diffMinutes)} more minute(s) before listing another item.`,
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
+
+    const files = values.images as FileList;
+    const uploadedImageUrls = [];
+    for (const file of Array.from(files)) {
+      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error("Error uploading image:", uploadError);
+        toast({ title: "Image Upload Error", description: `Failed to upload ${file.name}. Please try again.`, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      uploadedImageUrls.push(publicUrl);
+    }
+    const imageUrlsString = uploadedImageUrls.join(',');
 
     const { error } = await supabase.from("products").insert([
       {
-        ...values,
+        name: values.name,
+        description: values.description,
         price: parseFloat(values.price.replace('$', '')),
+        category: values.category,
+        stock: values.stock,
+        info: values.info,
+        image: imageUrlsString,
         seller_id: user.id,
       },
     ]);
 
+    setIsSubmitting(false);
     if (error) {
       console.error("Error inserting product:", error);
       toast({
@@ -87,6 +164,7 @@ export function SellForm() {
         title: "Product Submitted!",
         description: "Your product has been submitted for listing.",
       });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       form.reset();
     }
   }
@@ -148,12 +226,18 @@ export function SellForm() {
         />
         <FormField
           control={form.control}
-          name="image"
-          render={({ field }) => (
+          name="images"
+          render={({ field: { onChange, ...fieldProps } }) => (
             <FormItem>
-              <FormLabel>Image URL</FormLabel>
+              <FormLabel>Product Images (up to 5)</FormLabel>
               <FormControl>
-                <Input placeholder="https://example.com/image.png" {...field} />
+                <Input 
+                  type="file" 
+                  multiple
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  onChange={(e) => onChange(e.target.files)}
+                  {...fieldProps}
+                 />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -190,7 +274,9 @@ export function SellForm() {
           )}
         />
         <DialogClose asChild>
-          <Button type="submit" className="w-full">Submit for Listing</Button>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit for Listing"}
+          </Button>
         </DialogClose>
       </form>
     </Form>

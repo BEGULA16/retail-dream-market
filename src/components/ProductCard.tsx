@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Product } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { Flag } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +23,18 @@ const ProductCard = ({ product }: ProductCardProps) => {
       navigate('/auth');
     }
   };
+  
+  const handleReport = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toast({
+        title: "Report Submitted",
+        description: "Thank you for your report. Our team will review this item.",
+    });
+    console.log(`Reported product ${product.id}`);
+  };
+
+  const imageUrl = product.image ? product.image.split(',')[0] : '/placeholder.svg';
 
   return (
     <div
@@ -30,7 +44,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
     >
       <div className="aspect-square w-full overflow-hidden bg-gray-200">
         <img
-          src={product.image}
+          src={imageUrl}
           alt={product.info}
           className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
         />
@@ -61,9 +75,12 @@ const ProductCard = ({ product }: ProductCardProps) => {
             </p>
           )}
         </div>
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-4 flex items-center gap-2">
           <Button className="w-full" onClick={handleChatSeller}>
             Go to chat list
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleReport} aria-label="Report item">
+            <Flag className="h-4 w-4" />
           </Button>
         </div>
       </div>

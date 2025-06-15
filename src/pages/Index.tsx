@@ -2,9 +2,8 @@ import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import products from "@/data/products.json";
 import { Input } from "@/components/ui/input";
-import { Search, MessageSquare, Store } from "lucide-react";
+import { Search, MessageSquare, Store, Flag } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -26,6 +25,27 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import SellForm from "@/components/SellForm";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { Product } from "@/types";
+
+const fetchProducts = async (): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching products:", error);
+    throw new Error(error.message);
+  }
+  
+  // Map Supabase product data to local Product type
+  return data.map(p => ({
+    ...p,
+    price: `$${p.price.toFixed(2)}`,
+  }));
+};
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,12 +53,20 @@ const Index = () => {
   const [sortOption, setSortOption] = useState("default");
   const { totalUnreadCount } = useUnreadCounts();
 
+  const { data: products = [], isLoading, isError } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: fetchProducts
+  });
+
   const categories = useMemo(() => {
+    if (!products) return ["All"];
     const allCategories = products.map((p) => p.category);
     return ["All", ...Array.from(new Set(allCategories))];
-  }, []);
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
+    if (!products) return [];
+
     let productsToDisplay = products.filter((product) => {
       return selectedCategory === "All" || product.category === selectedCategory;
     });
@@ -53,7 +81,6 @@ const Index = () => {
 
     if (sortOption !== "default") {
       const parsePrice = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
-      // Create a new array before sorting to avoid mutating the original
       productsToDisplay = [...productsToDisplay].sort((a, b) => {
         switch (sortOption) {
           case "price-asc":
@@ -71,7 +98,7 @@ const Index = () => {
     }
 
     return productsToDisplay;
-  }, [searchTerm, selectedCategory, sortOption]);
+  }, [searchTerm, selectedCategory, sortOption, products]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -150,11 +177,15 @@ const Index = () => {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {isLoading && <p className="text-center">Loading products...</p>}
+          {isError && <p className="text-center text-destructive">Error loading products. Please try again later.</p>}
+          {!isLoading && !isError && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
       <Footer />
