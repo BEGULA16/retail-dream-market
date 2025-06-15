@@ -33,7 +33,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
             toast({ title: "This is your product", description: "You cannot chat with yourself." });
             return;
         }
-        navigate(`/chat/${product.seller_id}`);
+        const message = `Hi I am interested on this item\n${product.name}\nwilling to pay ${product.price}`;
+        navigate(`/chat/${product.seller_id}`, { state: { prefilledMessage: message } });
     } else {
         navigate('/auth');
     }

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -139,7 +140,8 @@ const ProductDetail = () => {
         toast({ title: "This is your own product", description: "You cannot start a chat about your own listing." });
         return;
       }
-      navigate(`/chat/${product.seller_id}`);
+      const message = `Hi I am interested on this item\n${product.name}\nwilling to pay ${product.price}`;
+      navigate(`/chat/${product.seller_id}`, { state: { prefilledMessage: message } });
     } else {
       navigate("/auth");
     }

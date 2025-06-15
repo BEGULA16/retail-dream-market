@@ -1,11 +1,11 @@
-
 import { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Send, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -34,9 +34,10 @@ const Conversation = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { recipientId } = useParams<{ recipientId: string }>();
+    const location = useLocation();
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const [newMessage, setNewMessage] = useState('');
+    const [newMessage, setNewMessage] = useState(location.state?.prefilledMessage || '');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [lastMessageTime, setLastMessageTime] = useState(0);
@@ -89,7 +90,7 @@ const Conversation = () => {
         }
     }, [messages]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent | React.KeyboardEvent) => {
         e.preventDefault();
         if (!user || (!newMessage.trim() && !imageFile)) return;
 
@@ -199,7 +200,7 @@ const Conversation = () => {
                                 </Button>
                             </div>
                         )}
-                        <form className="flex gap-2" onSubmit={handleSendMessage}>
+                        <form className="flex items-start gap-2" onSubmit={handleSendMessage}>
                              <Button type="button" variant="outline" size="icon" onClick={() => imageInputRef.current?.click()}>
                                 <ImageIcon />
                                 <span className="sr-only">Add Image</span>
@@ -211,11 +212,19 @@ const Conversation = () => {
                                 onChange={handleImageSelect}
                                 className="hidden"
                             />
-                            <Input
+                            <Textarea
                                 placeholder="Type a message..."
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 disabled={isSending}
+                                className="flex-1 resize-none"
+                                rows={1}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendMessage(e);
+                                    }
+                                }}
                             />
                             <Button type="submit" disabled={isSending || (!newMessage.trim() && !imageFile)}>
                                 {isSending ? '...' : <Send />}
