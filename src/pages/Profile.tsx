@@ -28,6 +28,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -90,6 +91,12 @@ const Profile = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.email) {
+      toast({ variant: 'destructive', title: 'Error', description: 'User email not found.' });
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       toast({ variant: 'destructive', title: 'Passwords do not match' });
       return;
@@ -98,11 +105,28 @@ const Profile = () => {
       toast({ variant: 'destructive', title: 'Password cannot be empty' });
       return;
     }
+    if (!currentPassword) {
+      toast({ variant: 'destructive', title: 'Please enter your current password' });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Verify current password by trying to sign in.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        throw new Error('Your current password is not correct.');
+      }
+
+      // If current password is correct, update to the new password.
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast({ title: 'Password updated successfully!' });
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
@@ -234,6 +258,7 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <Input id="current-password" type="password" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
                 <Input id="new-password" type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
                 <Input id="confirm-password" type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                 <Button type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update Password'}</Button>
