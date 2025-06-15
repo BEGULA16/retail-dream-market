@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Product } from "@/types";
+import { Product, Profile } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const fetchProduct = async (id: string): Promise<Product | null> => {
   const { data, error } = await supabase
     .from('products')
-    .select('*, profiles:seller_id(username, avatar_url)')
+    .select('*')
     .eq('id', id)
     .single();
 
@@ -31,9 +31,25 @@ const fetchProduct = async (id: string): Promise<Product | null> => {
 
   if (!data) return null;
 
+  let sellerProfile: Pick<Profile, 'username' | 'avatar_url'> | null = null;
+  if (data.seller_id) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('username, avatar_url')
+      .eq('id', data.seller_id)
+      .single();
+    
+    if (profileError) {
+      console.error(`Error fetching seller profile for product ${id}:`, profileError);
+    } else {
+      sellerProfile = profileData;
+    }
+  }
+
   return {
     ...data,
     price: `$${data.price.toFixed(2)}`,
+    profiles: sellerProfile,
   };
 };
 
