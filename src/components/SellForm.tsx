@@ -22,7 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { IMGBB_API_KEY } from "@/config";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const formSchema = z.object({
@@ -46,7 +46,7 @@ const formSchema = z.object({
     .refine((files): files is FileList => files.length <= 5, "You can upload a maximum of 5 images.")
     .refine(
       (files): files is FileList => Array.from(files).every((file) => file.size <= MAX_FILE_SIZE),
-      `Max file size is 5MB per image.`
+      `Max file size is 30MB per image.`
     )
     .refine(
       (files): files is FileList => Array.from(files).every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
