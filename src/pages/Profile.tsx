@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,8 +8,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useNavigate } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,14 +96,9 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      // Explicitly get session to ensure it's fresh and available
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        throw new Error(`Session Error: ${sessionError.message}`);
-      }
-      if (!currentSession) {
-        throw new Error('Authentication session not found. Please log out and log in again.');
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        throw new Error("Your session has expired. Please log out and log in again.");
       }
 
       // Update user_metadata in auth.users
@@ -121,9 +115,6 @@ const Profile = () => {
         .eq('id', user.id);
 
       if (profileError) throw profileError;
-
-      // Refresh the session to make sure all parts of the app have the latest user data
-      await supabase.auth.refreshSession();
 
       if (updatedUser?.user_metadata.username) {
         setUsername(updatedUser.user_metadata.username);
@@ -255,6 +246,12 @@ const Profile = () => {
 
   return (
     <div className="container mx-auto max-w-2xl py-8 px-4">
+      <Button asChild variant="ghost" className="mb-4">
+        <Link to="/">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Link>
+      </Button>
       <Card className="mb-8">
         <CardHeader className="flex flex-col sm:flex-row items-center gap-4 p-4 sm:p-6">
           <div className="relative">
@@ -366,4 +363,3 @@ const Profile = () => {
 };
 
 export default Profile;
-
