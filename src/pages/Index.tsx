@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
-import { Search, MessageSquare, Store, Flag } from "lucide-react";
+import { Search, MessageSquare, Store } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -52,7 +52,6 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("default");
   const { totalUnreadCount } = useUnreadCounts();
-  const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
 
   const { data: products = [], isLoading, isError } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -149,22 +148,11 @@ const Index = () => {
               Our Products
             </h1>
             <div className="flex items-center gap-4">
-              <Dialog open={isSellDialogOpen} onOpenChange={setIsSellDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Store className="mr-2 h-4 w-4" /> Sell Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>List an item for sale</DialogTitle>
-                    <DialogDescription>
-                      Fill out the details below to list your item on the marketplace.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <SellForm onFormSubmit={() => setIsSellDialogOpen(false)} />
-                </DialogContent>
-              </Dialog>
+              <Button asChild>
+                <Link to="/seller-panel">
+                  <Store className="mr-2 h-4 w-4" /> Seller Panel
+                </Link>
+              </Button>
 
               <Button asChild className="relative">
                 <Link to="/chat">

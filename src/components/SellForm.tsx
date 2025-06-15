@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -18,48 +19,57 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IMGBB_API_KEY } from "@/config";
+import { Product } from "@/types";
 
 const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Product name must be at least 2 characters.",
-  }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters.",
-  }),
-  price: z.string().refine((val) => /^\d+(\.\d{1,2})?$/.test(val.replace('$', '')), {
-    message: "Please enter a valid price (e.g., 29.99).",
-  }),
-  category: z.string().min(2, {
-    message: "Category must be at least 2 characters.",
-  }),
-  stock: z.coerce.number().int().positive({
-    message: "Stock must be a positive number.",
-  }),
-  images: z.any()
-    .refine((files): files is FileList => files instanceof FileList && files.length > 0, "At least one image is required.")
-    .refine((files): files is FileList => files.length <= 5, "You can upload a maximum of 5 images.")
-    .refine(
-      (files): files is FileList => Array.from(files).every((file) => file.size <= MAX_FILE_SIZE),
-      `Max file size is 30MB per image.`
-    )
-    .refine(
-      (files): files is FileList => Array.from(files).every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
-      ".jpg, .jpeg, .png and .webp files are accepted."
-    ),
-  info: z.string().min(10, {
-    message: "Info must be at least 10 characters.",
-  }),
-});
-
-export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
+export function SellForm({ onFormSubmit, productToEdit }: { onFormSubmit: () => void; productToEdit?: Product | null }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditMode = !!productToEdit;
+
+  const formSchema = z.object({
+    name: z.string().min(2, {
+      message: "Product name must be at least 2 characters.",
+    }),
+    description: z.string().min(10, {
+      message: "Description must be at least 10 characters.",
+    }),
+    price: z.string().refine((val) => /^\d+(\.\d{1,2})?$/.test(val.replace('$', '')), {
+      message: "Please enter a valid price (e.g., 29.99).",
+    }),
+    category: z.string().min(2, {
+      message: "Category must be at least 2 characters.",
+    }),
+    stock: z.coerce.number().int().positive({
+      message: "Stock must be a positive number.",
+    }),
+    images: z.any()
+      .refine(
+        (files) => isEditMode || (files instanceof FileList && files.length > 0),
+        "At least one image is required."
+      )
+      .refine(
+        (files) => !files || files.length === 0 || files.length <= 5,
+        "You can upload a maximum of 5 images."
+      )
+      .refine(
+        (files) => !files || files.length === 0 || Array.from(files).every((file) => file.size <= MAX_FILE_SIZE),
+        `Max file size is 30MB per image.`
+      )
+      .refine(
+        (files) => !files || files.length === 0 || Array.from(files).every((file) => ACCEPTED_IMAGE_TYPES.includes(file.type)),
+        ".jpg, .jpeg, .png and .webp files are accepted."
+      ),
+    info: z.string().min(10, {
+      message: "Info must be at least 10 characters.",
+    }),
+  });
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -74,6 +84,30 @@ export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
     },
   });
 
+  useEffect(() => {
+    if (productToEdit) {
+      form.reset({
+        name: productToEdit.name,
+        description: productToEdit.description,
+        price: String(productToEdit.price).replace('$', ''),
+        category: productToEdit.category,
+        stock: productToEdit.stock ?? 1,
+        images: undefined,
+        info: productToEdit.info,
+      });
+    } else {
+      form.reset({
+        name: "",
+        description: "",
+        price: "",
+        category: "",
+        stock: 1,
+        images: undefined,
+        info: "",
+      });
+    }
+  }, [productToEdit, form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
       toast({
@@ -85,7 +119,7 @@ export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
     }
     setIsSubmitting(true);
 
-    if (user.email !== 'damiankehnan@proton.me') {
+    if (user.email !== 'damiankehnan@proton.me' && !isEditMode) {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       const { data: recentProducts, error: recentError } = await supabase
         .from('products')
@@ -118,60 +152,84 @@ export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
       }
     }
 
-    const files = values.images as FileList;
-    const uploadedImageUrls = [];
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append('image', file);
+    let imageUrlsString = isEditMode ? productToEdit.image : '';
+    const files = values.images as FileList | undefined;
 
-      try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-            method: 'POST',
-            body: formData,
-        });
-        const result = await response.json();
+    if (files && files.length > 0) {
+      const uploadedImageUrls = [];
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('image', file);
 
-        if (!response.ok || !result.data || !result.data.url) {
-            console.error('ImgBB upload failed:', result);
-            throw new Error(result.error?.message || 'Failed to upload image to ImgBB');
+        try {
+          const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+              method: 'POST',
+              body: formData,
+          });
+          const result = await response.json();
+
+          if (!response.ok || !result.data || !result.data.url) {
+              console.error('ImgBB upload failed:', result);
+              throw new Error(result.error?.message || 'Failed to upload image to ImgBB');
+          }
+          uploadedImageUrls.push(result.data.url);
+        } catch (uploadError) {
+            console.error("Error uploading image:", uploadError);
+            toast({ title: "Image Upload Error", description: `Failed to upload ${file.name}. Please try again.`, variant: "destructive" });
+            setIsSubmitting(false);
+            return;
         }
-        uploadedImageUrls.push(result.data.url);
-      } catch (uploadError) {
-          console.error("Error uploading image:", uploadError);
-          toast({ title: "Image Upload Error", description: `Failed to upload ${file.name}. Please try again.`, variant: "destructive" });
-          setIsSubmitting(false);
-          return;
       }
+      imageUrlsString = uploadedImageUrls.join(',');
     }
-    const imageUrlsString = uploadedImageUrls.join(',');
+    
+    let error;
 
-    const { error } = await supabase.from("products").insert([
-      {
-        name: values.name,
-        description: values.description,
-        price: parseFloat(values.price.replace('$', '')),
-        category: values.category,
-        stock: values.stock,
-        info: values.info,
-        image: imageUrlsString,
-        seller_id: user.id,
-      },
-    ]);
+    if (isEditMode) {
+        const { error: updateError } = await supabase
+            .from("products")
+            .update({
+                name: values.name,
+                description: values.description,
+                price: parseFloat(values.price.replace('$', '')),
+                category: values.category,
+                stock: values.stock,
+                info: values.info,
+                image: imageUrlsString,
+            })
+            .eq('id', productToEdit.id);
+        error = updateError;
+    } else {
+        const { error: insertError } = await supabase.from("products").insert([
+          {
+            name: values.name,
+            description: values.description,
+            price: parseFloat(values.price.replace('$', '')),
+            category: values.category,
+            stock: values.stock,
+            info: values.info,
+            image: imageUrlsString,
+            seller_id: user.id,
+          },
+        ]);
+        error = insertError;
+    }
 
     setIsSubmitting(false);
     if (error) {
-      console.error("Error inserting product:", error);
+      console.error("Error saving product:", error);
       toast({
         title: "Error",
-        description: "There was an error listing your product. Please try again.",
+        description: `There was an error ${isEditMode ? 'updating' : 'listing'} your product. Please try again.`,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Product Submitted!",
-        description: "Your product has been submitted for listing.",
+        title: `Product ${isEditMode ? 'Updated' : 'Submitted'}!`,
+        description: `Your product has been successfully ${isEditMode ? 'updated' : 'submitted for listing'}.`,
       });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['user-products', user.id] });
       form.reset();
       onFormSubmit();
     }
@@ -284,7 +342,9 @@ export function SellForm({ onFormSubmit }: { onFormSubmit: () => void }) {
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting..." : "Submit for Listing"}
+          {isSubmitting 
+            ? (isEditMode ? "Updating..." : "Submitting...") 
+            : (isEditMode ? "Update Product" : "Submit for Listing")}
         </Button>
       </form>
     </Form>
