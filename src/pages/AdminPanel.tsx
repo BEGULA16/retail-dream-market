@@ -1,3 +1,4 @@
+
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
 
 const fetchUsers = async (): Promise<Profile[]> => {
     const { data, error } = await supabase
@@ -31,6 +33,7 @@ const fetchUsers = async (): Promise<Profile[]> => {
 
 const AdminPanel = () => {
     const queryClient = useQueryClient();
+    const { profile: currentAdminProfile } = useAuth();
     const { data: users, isLoading, error } = useQuery({
         queryKey: ['adminUsers'],
         queryFn: fetchUsers,
@@ -185,7 +188,9 @@ const AdminPanel = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {users.map(user => (
+                                {users.map(user => {
+                                    const isSelf = user.id === currentAdminProfile?.id;
+                                    return (
                                     <TableRow key={user.id} className={user.is_banned ? 'bg-destructive/10' : ''}>
                                         <TableCell>
                                             <div className="flex items-center gap-4">
@@ -218,8 +223,8 @@ const AdminPanel = () => {
                                                         variant="outline"
                                                         size="icon"
                                                         onClick={() => unbanUser(user.id)}
-                                                        disabled={isUnbanningUser}
-                                                        title="Remove Restriction"
+                                                        disabled={isUnbanningUser || isSelf}
+                                                        title={isSelf ? "You cannot modify your own status" : "Remove Restriction"}
                                                     >
                                                         <User className="h-4 w-4" />
                                                     </Button>
@@ -228,8 +233,8 @@ const AdminPanel = () => {
                                                         variant="outline"
                                                         size="icon"
                                                         onClick={() => permanentBan(user.id)}
-                                                        disabled={isBanningUser}
-                                                        title="Permanently Ban User"
+                                                        disabled={isBanningUser || isSelf}
+                                                        title={isSelf ? "You cannot modify your own status" : "Permanently Ban User"}
                                                     >
                                                         <Ban className="h-4 w-4" />
                                                     </Button>
@@ -238,8 +243,8 @@ const AdminPanel = () => {
                                                     variant="outline" 
                                                     size="icon" 
                                                     onClick={() => handleOpenRestrictDialog(user)}
-                                                    disabled={user.is_banned}
-                                                    title="Temporarily Restrict User"
+                                                    disabled={user.is_banned || isSelf}
+                                                    title={isSelf ? "You cannot modify your own status" : "Temporarily Restrict User"}
                                                 >
                                                     <TimerOff className="h-4 w-4" />
                                                 </Button>
@@ -247,14 +252,15 @@ const AdminPanel = () => {
                                                     variant="outline" 
                                                     size="icon" 
                                                     onClick={() => handleOpenBadgeDialog(user)}
-                                                    title="Edit User Badge"
+                                                    disabled={isSelf}
+                                                    title={isSelf ? "You cannot edit your own badge" : "Edit User Badge"}
                                                 >
                                                     <BadgeIcon className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )})}
                             </TableBody>
                         </Table>
                     )}
