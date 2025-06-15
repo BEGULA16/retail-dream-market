@@ -1,4 +1,3 @@
-
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -52,23 +51,26 @@ const Header = () => {
   };
 
   if (profile?.is_banned) {
-    const bannedUntilDate = profile.banned_until ? new Date(profile.banned_until) : null;
-    const isTemporarilyBanned = bannedUntilDate && !isNaN(bannedUntilDate.getTime()) && bannedUntilDate > new Date();
+    const isTemporarilyBanned = profile.banned_until && new Date(profile.banned_until) > new Date();
 
     const BanScreen = ({ children }: { children: React.ReactNode }) => (
         <div className="fixed inset-0 bg-background z-[100] flex items-center justify-center p-4">
             <div className="text-center max-w-md mx-auto">
                 {children}
+                <Button onClick={handleLogout} className="mt-6">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                </Button>
             </div>
         </div>
     );
     
-    if (isTemporarilyBanned && bannedUntilDate) {
+    if (isTemporarilyBanned) {
         return (
             <BanScreen>
                 <h1 className="text-4xl font-bold text-destructive">Account Restricted</h1>
                 <p className="text-muted-foreground mt-2">
-                    Your account is temporarily restricted. You can access the site again {formatDistanceToNow(bannedUntilDate, { addSuffix: true })}.
+                    Your account is temporarily restricted. You can access the site again {formatDistanceToNow(new Date(profile.banned_until!), { addSuffix: true })}.
                 </p>
             </BanScreen>
         );
