@@ -94,25 +94,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [profile]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel(`realtime-unread-counts-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, queryClient]);
-
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
     if (isRestrictionActive) {
