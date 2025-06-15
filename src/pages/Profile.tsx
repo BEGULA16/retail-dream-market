@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -94,6 +95,25 @@ const Profile = () => {
     e.preventDefault();
     if (!user || !username.trim()) return;
 
+    if (user.email !== 'damiankehnan@proton.me') {
+      const lastChanged = user.user_metadata?.username_last_changed_at;
+      if (lastChanged) {
+        const lastChangeDate = new Date(lastChanged);
+        const now = new Date();
+        const daysSinceChange = (now.getTime() - lastChangeDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysSinceChange < 28) {
+          const daysLeft = Math.ceil(28 - daysSinceChange);
+          toast({
+            variant: 'destructive',
+            title: 'Username change not allowed',
+            description: `You can change your username again in ${daysLeft} day(s).`
+          });
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
       const { error: refreshError } = await supabase.auth.refreshSession();
@@ -101,9 +121,17 @@ const Profile = () => {
         throw new Error("Your session has expired. Please log out and log in again.");
       }
 
+      const updateData: { username: string; 'username_last_changed_at'?: string } = {
+        username: username.trim(),
+      };
+
+      if (user.email !== 'damiankehnan@proton.me') {
+        updateData['username_last_changed_at'] = new Date().toISOString();
+      }
+
       // Update user_metadata in auth.users
       const { data: { user: updatedUser }, error: userError } = await supabase.auth.updateUser({
-        data: { username: username.trim() }
+        data: updateData
       });
 
       if (userError) throw userError;
@@ -210,6 +238,15 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
+    if (user?.email !== 'damiankehnan@proton.me') {
+      toast({
+        title: 'Feature In Development',
+        description: 'Account deletion with a 7-day grace period is not fully implemented yet. Please check back later.',
+        duration: 5000,
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('delete-user', {
