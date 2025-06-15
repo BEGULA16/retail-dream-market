@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Ban, Badge as BadgeIcon, User } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Profile } from '@/types';
+import { toast } from 'sonner';
 
 const fetchUsers = async (): Promise<Profile[]> => {
     const { data, error } = await supabase
@@ -18,6 +19,18 @@ const fetchUsers = async (): Promise<Profile[]> => {
         .select('id, username, avatar_url, created_at, badge, is_banned');
     
     if (error) {
+        // Gracefully handle missing column by re-fetching without it.
+        if (error.message.includes('column "created_at" does not exist')) {
+            console.warn("Column 'created_at' not found in 'profiles'. Omitting from query.");
+            const { data: fallbackData, error: fallbackError } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url, badge, is_banned');
+            if (fallbackError) {
+                console.error("Error fetching users (fallback):", fallbackError);
+                throw new Error(fallbackError.message);
+            }
+            return fallbackData || [];
+        }
         console.error("Error fetching users:", error);
         throw new Error(error.message);
     }
@@ -26,10 +39,36 @@ const fetchUsers = async (): Promise<Profile[]> => {
 };
 
 const AdminPanel = () => {
+    const queryClient = useQueryClient();
     const { data: users, isLoading, error } = useQuery({
         queryKey: ['adminUsers'],
         queryFn: fetchUsers,
     });
+    
+    const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
+        mutationFn: async ({ userId, newBanStatus }: { userId: string, newBanStatus: boolean }) => {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_banned: newBanStatus })
+                .eq('id', userId);
+            
+            if (error) {
+                throw new Error(error.message);
+            }
+        },
+        onSuccess: (_, { newBanStatus }) => {
+            toast.success(`User has been ${newBanStatus ? 'banned' : 'unbanned'}.`);
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+        },
+        onError: (error: Error) => {
+            toast.error(`Failed to update user status: ${error.message}`);
+        }
+    });
+
+    const handleToggleBan = (user: Profile) => {
+        if (!user.id) return;
+        toggleBan({ userId: user.id, newBanStatus: !user.is_banned });
+    };
     
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
 
@@ -86,7 +125,12 @@ const AdminPanel = () => {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex gap-2 justify-end">
-                                                <Button variant="outline" size="icon" disabled>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    onClick={() => handleToggleBan(user)}
+                                                    disabled={isTogglingBan}
+                                                >
                                                     {user.is_banned ? <User className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
                                                 </Button>
                                                 <Button variant="outline" size="icon" disabled>
