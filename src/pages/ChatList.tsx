@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -13,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
-import { useGlobalMessages } from '@/hooks/useGlobalMessages';
 import { Profile } from '@/types';
 import Fuse from 'fuse.js';
 
@@ -51,9 +49,6 @@ const ChatList = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Use the global message handler
-  useGlobalMessages();
-
   useEffect(() => {
     if (!user) {
       navigate('/auth', { replace: true });
@@ -73,47 +68,6 @@ const ChatList = () => {
   });
 
   const { unreadCounts } = useUnreadCounts();
-
-  useEffect(() => {
-    if (!user) return;
-
-    const handleNewMessage = (payload: any) => {
-      // Always invalidate unread counts on a new message
-      queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
-
-      const newMessage = payload.new as { recipient_id: string; sender_id: string; };
-      const currentArchivedIds: string[] | undefined = queryClient.getQueryData(['archivedConversations', user.id]);
-      
-      if (newMessage.recipient_id === user.id && currentArchivedIds?.includes(newMessage.sender_id)) {
-        supabase
-          .from('archived_conversations')
-          .delete()
-          .match({ user_id: user.id, archived_user_id: newMessage.sender_id })
-          .then(({ error }) => {
-            if (!error) {
-              toast({
-                title: "Message from archived chat",
-                description: "The conversation has been moved to your inbox.",
-              });
-              queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
-            }
-          });
-      }
-    };
-
-    const channel = supabase
-      .channel(`realtime-chatlist-updates-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
-        handleNewMessage
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, queryClient, toast]);
 
   const handleArchive = async (profileId: string) => {
       if (!user) return;

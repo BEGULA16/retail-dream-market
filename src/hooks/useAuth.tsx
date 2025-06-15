@@ -121,6 +121,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user, refreshAuth]);
 
+  // Global message handler for real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up global message handler for user:', user.id);
+
+    const handleNewMessage = (payload: any) => {
+      console.log('Global message handler triggered:', payload);
+      
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['unreadCounts', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+
+      const newMessage = payload.new as { recipient_id: string; sender_id: string };
+
+      // Handle archived conversations
+      supabase
+        .from('archived_conversations')
+        .select('archived_user_id')
+        .eq('user_id', user.id)
+        .eq('archived_user_id', newMessage.sender_id)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error checking for archived conversation:', error);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            supabase
+              .from('archived_conversations')
+              .delete()
+              .match({ user_id: user.id, archived_user_id: newMessage.sender_id })
+              .then(({ error: deleteError }) => {
+                if (!deleteError) {
+                  toast({
+                    title: "Message from archived chat",
+                    description: "The conversation has been moved to your inbox.",
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
+                }
+              });
+          }
+        });
+    };
+
+    const channel = supabase
+      .channel(`global-messages-listener-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` },
+        handleNewMessage
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient, toast]);
+
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
     if (isRestrictionActive) {
