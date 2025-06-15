@@ -1,5 +1,4 @@
-
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
 import { useEffect, useRef } from 'react';
@@ -33,7 +32,6 @@ export const useUnreadCounts = () => {
     const { user } = useAuth();
     const { permission, sendNotification } = useNotifications();
     const prevTotalUnreadCount = useRef<number>();
-    const queryClient = useQueryClient();
 
     const queryKey = ['unreadCounts', user?.id];
     const { data: unreadCounts, ...queryResult } = useQuery({
@@ -41,32 +39,6 @@ export const useUnreadCounts = () => {
         queryFn: () => fetchUnreadCounts(user!.id),
         enabled: !!user,
     });
-
-    useEffect(() => {
-        if (!user) return;
-
-        const handleMessageChange = () => {
-            queryClient.invalidateQueries({ queryKey });
-        };
-
-        const channel = supabase
-            .channel(`realtime-unread-counts-${user.id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `recipient_id=eq.${user.id}`,
-                },
-                handleMessageChange
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user, queryClient, queryKey]);
 
     const totalUnreadCount = unreadCounts ? Object.values(unreadCounts).reduce((sum, count) => sum + count, 0) : 0;
 
