@@ -31,62 +31,6 @@ const fetchProfiles = async (): Promise<Profile[]> => {
   return data || [];
 };
 
-const fetchConversationPartners = async (userId: string): Promise<string[]> => {
-    const { data: sentTo, error: sentError } = await supabase
-        .from('messages')
-        .select('recipient_id')
-        .eq('sender_id', userId);
-    
-    if (sentError) {
-        console.error('Error fetching sent messages partners', sentError);
-        throw sentError;
-    }
-
-    const { data: receivedFrom, error: receivedError } = await supabase
-        .from('messages')
-        .select('sender_id')
-        .eq('recipient_id', userId);
-
-    if (receivedError) {
-        console.error('Error fetching received messages partners', receivedError);
-        throw receivedError;
-    }
-
-    const sentIds = sentTo.map(m => m.recipient_id);
-    const receivedIds = receivedFrom.map(m => m.sender_id);
-    const partnerIds = [...new Set([...sentIds, ...receivedIds])];
-    
-    return partnerIds;
-};
-
-const fetchPartnerProfiles = async (partnerIds: string[] | undefined): Promise<Profile[]> => {
-    if (!partnerIds || partnerIds.length === 0) return [];
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .in('id', partnerIds);
-    if (error) {
-        console.error('Error fetching partner profiles', error);
-        throw error;
-    }
-    return data || [];
-};
-
-const fetchSearchedProfiles = async (searchTerm: string): Promise<Profile[]> => {
-    if (!searchTerm.trim()) return [];
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .ilike('username', `%${searchTerm.trim()}%`)
-        .limit(20);
-
-    if (error) {
-        console.error('Error fetching searched profiles', error);
-        throw error;
-    }
-    return data || [];
-};
-
 const fetchArchivedConversations = async (userId: string) => {
     const { data, error } = await supabase
         .from('archived_conversations')
@@ -115,23 +59,10 @@ const ChatList = () => {
     }
   }, [user, navigate]);
 
-  const { data: partnerIds, isLoading: partnersLoading } = useQuery({
-      queryKey: ['conversationPartners', user?.id],
-      queryFn: () => fetchConversationPartners(user!.id),
-      enabled: !!user,
-  });
-
-  const { data: partnerProfiles, isLoading: partnerProfilesLoading } = useQuery({
-      queryKey: ['partnerProfiles', partnerIds],
-      queryFn: () => fetchPartnerProfiles(partnerIds),
-      enabled: !!partnerIds,
-  });
-
-  const { data: searchedProfiles, isLoading: searchLoading } = useQuery({
-      queryKey: ['searchedProfiles', searchTerm],
-      queryFn: () => fetchSearchedProfiles(searchTerm),
-      enabled: !!searchTerm.trim(),
-      placeholderData: (previousData) => previousData,
+  const { data: profiles, isLoading } = useQuery<Profile[]>({
+    queryKey: ['profiles'],
+    queryFn: fetchProfiles,
+    enabled: !!user,
   });
 
   const { data: archivedIds } = useQuery({
@@ -212,8 +143,6 @@ const ChatList = () => {
       }
   };
 
-  const profiles = searchTerm.trim() ? searchedProfiles : partnerProfiles;
-
   const filteredProfiles = profiles?.filter(profile => {
     const isArchived = archivedIds?.includes(profile.id);
     const matchesSearch = profile.username?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -224,8 +153,6 @@ const ChatList = () => {
     }
     return !isArchived && matchesSearch && isNotCurrentUser;
   });
-
-  const isLoading = partnersLoading || partnerProfilesLoading || (!!searchTerm.trim() && searchLoading);
 
   if (!user) {
     return (
@@ -261,7 +188,7 @@ const ChatList = () => {
           />
         </div>
         <div className="flex-grow border rounded-lg p-4 overflow-y-auto">
-          {isLoading && <p className="text-center text-muted-foreground">{searchTerm.trim() ? "Searching users..." : "Loading conversations..."}</p>}
+          {isLoading && <p className="text-center text-muted-foreground">Loading users...</p>}
           <div className="space-y-2">
             {filteredProfiles?.map(profile => (
               <div key={profile.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted group">
@@ -297,15 +224,7 @@ const ChatList = () => {
                 </div>
               </div>
             ))}
-            {filteredProfiles?.length === 0 && !isLoading && (
-              <p className="text-center text-muted-foreground">
-                {showArchived
-                    ? "No archived users found."
-                    : searchTerm.trim()
-                    ? "No users found."
-                    : "You have no active conversations. Search for a user to start a new chat."}
-              </p>
-            )}
+            {filteredProfiles?.length === 0 && !isLoading && <p className="text-center text-muted-foreground">{showArchived ? "No archived users found." : "No users found."}</p>}
           </div>
         </div>
       </main>

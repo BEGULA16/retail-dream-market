@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff } from 'lucide-react';
@@ -15,12 +15,12 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuth';
 
 const fetchUsers = async (): Promise<Profile[]> => {
+    // We are now fetching created_at, badge, and banned_until as well.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until, is_admin');
+        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until');
     
     if (error) {
         console.error("Error fetching users:", error);
@@ -32,13 +32,9 @@ const fetchUsers = async (): Promise<Profile[]> => {
 
 const AdminPanel = () => {
     const queryClient = useQueryClient();
-    const { profile } = useAuth();
-    const navigate = useNavigate();
-
     const { data: users, isLoading, error } = useQuery({
         queryKey: ['adminUsers'],
         queryFn: fetchUsers,
-        enabled: !!profile?.is_admin,
     });
 
     const [isBadgeDialogOpen, setIsBadgeDialogOpen] = useState(false);
@@ -47,33 +43,6 @@ const AdminPanel = () => {
     const [badgeText, setBadgeText] = useState('');
     const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
-    if (!profile) {
-        return (
-            <div className="container mx-auto max-w-4xl py-8 px-4 text-center">
-                <Skeleton className="h-8 w-48 mb-4" />
-                <Skeleton className="h-6 w-64" />
-            </div>
-        );
-    }
-
-    if (!profile.is_admin) {
-        return (
-            <div className="container mx-auto max-w-4xl py-8 px-4 text-center">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-2xl text-destructive">Access Denied</CardTitle>
-                        <CardDescription>You do not have permission to view this page.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button onClick={() => navigate('/')}>
-                            Go to Homepage
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
         mutationFn: async ({ userId, isCurrentlyBanned }: { userId: string, isCurrentlyBanned: boolean }) => {
             // If the user is currently banned (in any state), we unban them.
@@ -151,7 +120,7 @@ const AdminPanel = () => {
 
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
-        toggleBan({ userId: user.id, isCurrentlyBanned: !!user.is_banned });
+        toggleBan({ userId: user.id, isCurrentlyBanned: user.is_banned });
     };
 
     const handleOpenBadgeDialog = (user: Profile) => {
@@ -227,7 +196,6 @@ const AdminPanel = () => {
                                                 <div className="flex flex-col items-start gap-1">
                                                     <span className={`font-medium ${user.is_banned ? 'line-through' : ''}`}>{user.username}</span>
                                                     <div className="flex items-center gap-2">
-                                                        {user.is_admin && <Badge variant="outline">Admin</Badge>}
                                                         {user.badge && <Badge variant="secondary">{user.badge}</Badge>}
                                                         {user.is_banned && (
                                                             <Badge variant="destructive">
