@@ -97,24 +97,35 @@ const Profile = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('update-username', {
-        method: 'POST',
-        body: { username: username.trim() },
+      // Update user_metadata in auth.users
+      const { data: { user: updatedUser }, error: userError } = await supabase.auth.updateUser({
+        data: { username: username.trim() }
       });
 
-      if (error) throw error;
+      if (userError) throw userError;
 
-      // Manually refresh session to get updated user metadata
+      // Update public.profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ username: username.trim(), updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (profileError) throw profileError;
+
+      // Refresh the session to make sure all parts of the app have the latest user data
       await supabase.auth.refreshSession();
+
+      if (updatedUser?.user_metadata.username) {
+        setUsername(updatedUser.user_metadata.username);
+      }
 
       toast({ title: 'Username updated successfully!' });
     } catch (error: any) {
       console.error("Error updating username:", error);
-      const errorMessage = error.context?.body?.error || error.message || "An unknown error occurred.";
       toast({
         variant: 'destructive',
         title: 'Error updating username',
-        description: `${errorMessage} Please ensure the 'update-username' Edge Function is deployed correctly.`,
+        description: error.message,
       });
     } finally {
       setLoading(false);
