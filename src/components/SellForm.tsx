@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -86,16 +85,6 @@ export function SellForm() {
       return;
     }
     setIsSubmitting(true);
-
-    if (IMGBB_API_KEY === "YOUR_API_KEY_HERE") {
-        toast({
-            title: "Configuration Needed",
-            description: "Please provide an ImgBB API key in src/config.ts to upload images.",
-            variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-    }
 
     if (user.email !== 'damiankehnan@proton.me') {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
