@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff } from 'lucide-react';
+import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff, ShieldAlert } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,10 +11,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Profile } from '@/types';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
 
 const fetchUsers = async (): Promise<Profile[]> => {
     // We are now fetching created_at, badge, and banned_until as well.
@@ -32,6 +33,9 @@ const fetchUsers = async (): Promise<Profile[]> => {
 
 const AdminPanel = () => {
     const queryClient = useQueryClient();
+    const { profile, session } = useAuth();
+    const navigate = useNavigate();
+
     const { data: users, isLoading, error } = useQuery({
         queryKey: ['adminUsers'],
         queryFn: fetchUsers,
@@ -43,6 +47,12 @@ const AdminPanel = () => {
     const [badgeText, setBadgeText] = useState('');
     const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
+    useEffect(() => {
+        if (!session) {
+            navigate('/auth', { replace: true });
+        }
+    }, [session, navigate]);
+
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
         mutationFn: async ({ userId, isCurrentlyBanned }: { userId: string, isCurrentlyBanned: boolean }) => {
             // If the user is currently banned (in any state), we unban them.
@@ -120,7 +130,7 @@ const AdminPanel = () => {
 
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
-        toggleBan({ userId: user.id, isCurrentlyBanned: user.is_banned });
+        toggleBan({ userId: user.id, isCurrentlyBanned: !!user.is_banned });
     };
 
     const handleOpenBadgeDialog = (user: Profile) => {
@@ -151,6 +161,37 @@ const AdminPanel = () => {
     };
     
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
+
+    if (!profile) {
+        return (
+            <div className="container mx-auto max-w-4xl py-8 px-4">
+                <div className="flex items-center justify-center">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!profile.is_admin) {
+        return (
+            <div className="container mx-auto max-w-lg py-8 px-4">
+                <Card className="text-center">
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-center text-2xl">
+                            <ShieldAlert className="mr-2 h-6 w-6 text-destructive" />
+                            Access Denied
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">You do not have permission to view this page.</p>
+                        <Button asChild className="mt-6">
+                            <Link to="/">Go to Homepage</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto max-w-4xl py-8 px-4">
