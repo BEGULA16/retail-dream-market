@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const fetchUsers = async (): Promise<Profile[]> => {
-    // We are now fetching created_at, badge, and banned_until as well.
     const { data, error } = await supabase
         .from('profiles')
         .select('id, username, avatar_url, is_banned, created_at, badge, banned_until');
@@ -43,32 +42,38 @@ const AdminPanel = () => {
     const [badgeText, setBadgeText] = useState('');
     const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
-    const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
-        mutationFn: async ({ userId, isCurrentlyBanned }: { userId: string, isCurrentlyBanned: boolean }) => {
-            // If the user is currently banned (in any state), we unban them.
-            if (isCurrentlyBanned) {
-                const { error } = await supabase
-                    .from('profiles')
-                    .update({ is_banned: false, banned_until: null })
-                    .eq('id', userId);
-                if (error) throw new Error(error.message);
-            } else {
-                // Otherwise, we're applying a new permanent ban.
-                const { error } = await supabase
-                    .from('profiles')
-                    .update({ is_banned: true, banned_until: null })
-                    .eq('id', userId);
-                if (error) throw new Error(error.message);
-            }
+    const { mutate: permanentBan, isPending: isBanningUser } = useMutation({
+        mutationFn: async (userId: string) => {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_banned: true, banned_until: null })
+                .eq('id', userId);
+            if (error) throw new Error(error.message);
         },
-        onSuccess: (_, { isCurrentlyBanned }) => {
-            const message = isCurrentlyBanned ? 'User has been unbanned.' : 'User has been permanently banned.';
-            toast.success(message);
+        onSuccess: () => {
+            toast.success('User has been permanently banned.');
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         },
         onError: (error: Error) => {
-            toast.error(`Failed to update user status: ${error.message}`);
-        }
+            toast.error(`Failed to ban user: ${error.message}`);
+        },
+    });
+
+    const { mutate: unbanUser, isPending: isUnbanningUser } = useMutation({
+        mutationFn: async (userId: string) => {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_banned: false, banned_until: null })
+                .eq('id', userId);
+            if (error) throw new Error(error.message);
+        },
+        onSuccess: () => {
+            toast.success('User restriction has been removed.');
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+        },
+        onError: (error: Error) => {
+            toast.error(`Failed to remove restriction: ${error.message}`);
+        },
     });
 
     const { mutate: updateBadge, isPending: isUpdatingBadge } = useMutation({
@@ -117,11 +122,6 @@ const AdminPanel = () => {
             toast.error(`Failed to restrict user: ${error.message}`);
         }
     });
-
-    const handleToggleBan = (user: Profile) => {
-        if (!user.id) return;
-        toggleBan({ userId: user.id, isCurrentlyBanned: user.is_banned });
-    };
 
     const handleOpenBadgeDialog = (user: Profile) => {
         setSelectedUser(user);
@@ -213,21 +213,33 @@ const AdminPanel = () => {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex gap-2 justify-end">
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="icon" 
-                                                    onClick={() => handleToggleBan(user)}
-                                                    disabled={isTogglingBan}
-                                                    title={user.is_banned ? "Unban User" : "Permanently Ban User"}
-                                                >
-                                                    {user.is_banned ? <User className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-                                                </Button>
+                                                {user.is_banned ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => unbanUser(user.id)}
+                                                        disabled={isUnbanningUser}
+                                                        title="Remove Restriction"
+                                                    >
+                                                        <User className="h-4 w-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => permanentBan(user.id)}
+                                                        disabled={isBanningUser}
+                                                        title="Permanently Ban User"
+                                                    >
+                                                        <Ban className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                                 <Button 
                                                     variant="outline" 
                                                     size="icon" 
                                                     onClick={() => handleOpenRestrictDialog(user)}
                                                     disabled={user.is_banned}
-                                                    title="Temporarily Ban User"
+                                                    title="Temporarily Restrict User"
                                                 >
                                                     <TimerOff className="h-4 w-4" />
                                                 </Button>

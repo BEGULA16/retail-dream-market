@@ -3,45 +3,83 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import { Profile } from '@/types';
+import BannedPage from '@/pages/BannedPage';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  profile: Profile | null;
   refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
+  profile: null,
   refreshAuth: () => Promise.resolve(),
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+        console.error('Error fetching profile:', error);
+        return null;
+    }
+    return data as Profile | null;
+  };
 
   const refreshAuth = async () => {
     const { data: { session: newSession } } = await supabase.auth.getSession();
     setSession(newSession);
-    setUser(newSession?.user ?? null);
+    const authUser = newSession?.user ?? null;
+    setUser(authUser);
+    if (authUser) {
+        const profileData = await fetchProfile(authUser.id);
+        setProfile(profileData);
+    } else {
+        setProfile(null);
+    }
   };
 
   useEffect(() => {
-    const getSession = async () => {
+    const getSessionAndProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      setUser(session?.user ?? null);
+      const authUser = session?.user ?? null;
+      setUser(authUser);
+      if (authUser) {
+        const profileData = await fetchProfile(authUser.id);
+        setProfile(profileData);
+      }
       setLoading(false);
     };
 
-    getSession();
+    getSessionAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        const authUser = session?.user ?? null;
+        setUser(authUser);
+        if (authUser) {
+            const profileData = await fetchProfile(authUser.id);
+            setProfile(profileData);
+        } else {
+            setProfile(null);
+        }
       }
     );
 
@@ -49,6 +87,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    // Auto-unban logic for expired temporary bans
+    if (profile?.is_banned && profile.banned_until && new Date(profile.banned_until) < new Date()) {
+      const unbanUser = async () => {
+        await supabase.from('profiles').update({ is_banned: false, banned_until: null }).eq('id', profile.id);
+        await refreshAuth();
+      };
+      unbanUser();
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!user) return;
@@ -69,8 +118,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user, queryClient]);
 
+  if (profile?.is_banned) {
+    const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
+    if (isRestrictionActive) {
+        return <BannedPage bannedUntil={profile.banned_until} />;
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ session, user, refreshAuth }}>
+    <AuthContext.Provider value={{ session, user, profile, refreshAuth }}>
       {!loading && children}
     </AuthContext.Provider>
   );
