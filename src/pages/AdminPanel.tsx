@@ -1,7 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff, ShieldAlert, Shield } from 'lucide-react';
+import { ArrowLeft, Ban, Badge as BadgeIcon, User, TimerOff } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,16 +11,16 @@ import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Profile } from '@/types';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuth';
 
 const fetchUsers = async (): Promise<Profile[]> => {
+    // We are now fetching created_at, badge, and banned_until as well.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until, is_admin');
+        .select('id, username, avatar_url, is_banned, created_at, badge, banned_until');
     
     if (error) {
         console.error("Error fetching users:", error);
@@ -32,9 +32,6 @@ const fetchUsers = async (): Promise<Profile[]> => {
 
 const AdminPanel = () => {
     const queryClient = useQueryClient();
-    const { profile, session } = useAuth();
-    const navigate = useNavigate();
-
     const { data: users, isLoading, error } = useQuery({
         queryKey: ['adminUsers'],
         queryFn: fetchUsers,
@@ -46,14 +43,9 @@ const AdminPanel = () => {
     const [badgeText, setBadgeText] = useState('');
     const [restrictionDuration, setRestrictionDuration] = useState(''); // In hours
     
-    useEffect(() => {
-        if (!session) {
-            navigate('/auth', { replace: true });
-        }
-    }, [session, navigate]);
-
     const { mutate: toggleBan, isPending: isTogglingBan } = useMutation({
         mutationFn: async ({ userId, isCurrentlyBanned }: { userId: string, isCurrentlyBanned: boolean }) => {
+            // If the user is currently banned (in any state), we unban them.
             if (isCurrentlyBanned) {
                 const { error } = await supabase
                     .from('profiles')
@@ -61,6 +53,7 @@ const AdminPanel = () => {
                     .eq('id', userId);
                 if (error) throw new Error(error.message);
             } else {
+                // Otherwise, we're applying a new permanent ban.
                 const { error } = await supabase
                     .from('profiles')
                     .update({ is_banned: true, banned_until: null })
@@ -125,31 +118,9 @@ const AdminPanel = () => {
         }
     });
 
-    const { mutate: toggleAdmin, isPending: isTogglingAdmin } = useMutation({
-        mutationFn: async ({ userId, isCurrentlyAdmin }: { userId: string, isCurrentlyAdmin: boolean }) => {
-            if (userId === profile?.id) {
-                throw new Error("You cannot remove your own admin rights.");
-            }
-
-            const { error } = await supabase
-                .from('profiles')
-                .update({ is_admin: !isCurrentlyAdmin })
-                .eq('id', userId);
-            
-            if (error) { throw new Error(error.message); }
-        },
-        onSuccess: (_, { isCurrentlyAdmin }) => {
-            toast.success(isCurrentlyAdmin ? "Admin rights revoked." : "Admin rights granted.");
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-        },
-        onError: (error: Error) => {
-            toast.error(`Failed to update admin status: ${error.message}`);
-        }
-    });
-
     const handleToggleBan = (user: Profile) => {
         if (!user.id) return;
-        toggleBan({ userId: user.id, isCurrentlyBanned: !!user.is_banned });
+        toggleBan({ userId: user.id, isCurrentlyBanned: user.is_banned });
     };
 
     const handleOpenBadgeDialog = (user: Profile) => {
@@ -179,43 +150,7 @@ const AdminPanel = () => {
         restrictUser({ userId: selectedUser.id, hours });
     };
     
-    const handleToggleAdmin = (user: Profile) => {
-        if (!user.id) return;
-        toggleAdmin({ userId: user.id, isCurrentlyAdmin: !!user.is_admin });
-    };
-
     const getInitials = (name: string) => (name ? name.charAt(0).toUpperCase() : 'U');
-
-    if (!profile) {
-        return (
-            <div className="container mx-auto max-w-4xl py-8 px-4">
-                <div className="flex items-center justify-center">
-                    <p>Loading...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (!profile.is_admin) {
-        return (
-            <div className="container mx-auto max-w-lg py-8 px-4">
-                <Card className="text-center">
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-center text-2xl">
-                            <ShieldAlert className="mr-2 h-6 w-6 text-destructive" />
-                            Access Denied
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">You do not have permission to view this page.</p>
-                        <Button asChild className="mt-6">
-                            <Link to="/">Go to Homepage</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
 
     return (
         <div className="container mx-auto max-w-4xl py-8 px-4">
@@ -261,7 +196,6 @@ const AdminPanel = () => {
                                                 <div className="flex flex-col items-start gap-1">
                                                     <span className={`font-medium ${user.is_banned ? 'line-through' : ''}`}>{user.username}</span>
                                                     <div className="flex items-center gap-2">
-                                                        {user.is_admin && <Badge>Admin</Badge>}
                                                         {user.badge && <Badge variant="secondary">{user.badge}</Badge>}
                                                         {user.is_banned && (
                                                             <Badge variant="destructive">
@@ -292,7 +226,7 @@ const AdminPanel = () => {
                                                     variant="outline" 
                                                     size="icon" 
                                                     onClick={() => handleOpenRestrictDialog(user)}
-                                                    disabled={!!user.is_banned}
+                                                    disabled={user.is_banned}
                                                     title="Temporarily Ban User"
                                                 >
                                                     <TimerOff className="h-4 w-4" />
@@ -304,15 +238,6 @@ const AdminPanel = () => {
                                                     title="Edit User Badge"
                                                 >
                                                     <BadgeIcon className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    onClick={() => handleToggleAdmin(user)}
-                                                    disabled={isTogglingAdmin || user.id === profile?.id}
-                                                    title={user.is_admin ? "Revoke Admin" : "Grant Admin"}
-                                                >
-                                                    <Shield className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </TableCell>

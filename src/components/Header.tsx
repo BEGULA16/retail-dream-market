@@ -57,6 +57,10 @@ const Header = () => {
         <div className="fixed inset-0 bg-background z-[100] flex items-center justify-center p-4">
             <div className="text-center max-w-md mx-auto">
                 {children}
+                <Button onClick={handleLogout} className="mt-6">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                </Button>
             </div>
         </div>
     );
