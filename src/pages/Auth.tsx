@@ -127,13 +127,16 @@ const Auth = () => {
       return;
     }
     setLoading(true);
+    const redirectTo = `${window.location.origin}/update-password`;
+    console.log('Attempting to send password reset. Redirect URL:', redirectTo);
+
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/update-password`,
+      redirectTo,
     });
 
     if (error) {
       console.error('Error sending password reset email:', error);
-      toast({ variant: "destructive", title: "Error sending recovery email", description: error.message });
+      toast({ variant: "destructive", title: "Error sending recovery email", description: "Please check console and verify Supabase URL config." });
     } else {
       toast({
         title: "Password reset link sent",
