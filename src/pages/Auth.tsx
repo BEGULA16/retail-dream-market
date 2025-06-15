@@ -132,7 +132,8 @@ const Auth = () => {
     });
 
     if (error) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      console.error('Error sending password reset email:', error);
+      toast({ variant: "destructive", title: "Error sending recovery email", description: error.message });
     } else {
       toast({
         title: "Password reset link sent",
