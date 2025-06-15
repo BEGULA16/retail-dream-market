@@ -55,15 +55,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const getSessionAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      const authUser = session?.user ?? null;
-      setUser(authUser);
-      if (authUser) {
-        const profileData = await fetchProfile(authUser.id);
-        setProfile(profileData);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        const authUser = session?.user ?? null;
+        setUser(authUser);
+        if (authUser) {
+          const profileData = await fetchProfile(authUser.id);
+          setProfile(profileData);
+        }
+      } catch (error) {
+        console.error("Error getting session and profile:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getSessionAndProfile();
