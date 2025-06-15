@@ -4,7 +4,6 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { Profile } from '@/types';
-import BannedPage from '@/pages/BannedPage';
 
 interface AuthContextType {
   session: Session | null;
@@ -121,7 +120,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   if (profile?.is_banned) {
     const isRestrictionActive = profile.banned_until ? new Date(profile.banned_until) > new Date() : true;
     if (isRestrictionActive) {
-        return <BannedPage bannedUntil={profile.banned_until} />;
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
+                <h1 className="text-4xl font-bold text-destructive">You are Banned</h1>
+                <p className="mt-4 text-lg">You are restricted from accessing this service.</p>
+                {profile.banned_until && (
+                    <p className="mt-2 text-muted-foreground">
+                        Your ban expires on: {new Date(profile.banned_until).toLocaleString()}
+                    </p>
+                )}
+            </div>
+        );
     }
   }
 
