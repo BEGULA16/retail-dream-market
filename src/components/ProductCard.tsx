@@ -63,7 +63,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
         <div className="mt-auto pt-4">
           <Button className="w-full" onClick={handleChatSeller}>
-            Chat seller
+            Go to chat list
           </Button>
         </div>
       </div>

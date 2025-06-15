@@ -64,7 +64,7 @@ const ProductDetail = () => {
                 )}
             </div>
             <Button size="lg" onClick={handleChatSeller}>
-                Chat seller
+                Go to chat list
             </Button>
           </div>
         </div>
