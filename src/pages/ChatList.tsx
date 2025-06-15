@@ -1,25 +1,27 @@
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Archive } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from '@/components/ui/use-toast';
 
 interface Profile {
   id: string;
   username: string;
+  avatar_url: string | null;
 }
 
 const fetchProfiles = async (): Promise<Profile[]> => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username');
+    .select('id, username, avatar_url');
 
   if (error) {
     console.error('Error fetching profiles:', error);
@@ -28,10 +30,26 @@ const fetchProfiles = async (): Promise<Profile[]> => {
   return data || [];
 };
 
+const fetchArchivedConversations = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('archived_conversations')
+        .select('archived_user_id')
+        .eq('user_id', userId);
+    
+    if (error) {
+        console.error('Error fetching archived conversations', error);
+        throw error;
+    }
+
+    return data.map(item => item.archived_user_id);
+};
+
 const ChatList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user) {
@@ -45,8 +63,32 @@ const ChatList = () => {
     enabled: !!user,
   });
 
+  const { data: archivedIds } = useQuery({
+      queryKey: ['archivedConversations', user?.id],
+      queryFn: () => fetchArchivedConversations(user!.id),
+      enabled: !!user,
+  });
+
+  const handleArchive = async (profileId: string) => {
+      if (!user) return;
+      try {
+          const { error } = await supabase
+              .from('archived_conversations')
+              .insert({ user_id: user.id, archived_user_id: profileId });
+
+          if (error) throw error;
+
+          toast({ title: 'Conversation archived.' });
+          queryClient.invalidateQueries({ queryKey: ['archivedConversations', user.id] });
+      } catch (error: any) {
+          toast({ variant: 'destructive', title: 'Error archiving conversation', description: error.message });
+      }
+  };
+
   const filteredProfiles = profiles?.filter(profile =>
-    profile.username?.toLowerCase().includes(searchTerm.toLowerCase()) && profile.id !== user?.id
+    profile.username?.toLowerCase().includes(searchTerm.toLowerCase()) && 
+    profile.id !== user?.id &&
+    !archivedIds?.includes(profile.id)
   );
 
   if (!user) {
@@ -80,17 +122,26 @@ const ChatList = () => {
           {isLoading && <p className="text-center text-muted-foreground">Loading users...</p>}
           <div className="space-y-2">
             {filteredProfiles?.map(profile => (
-              <Link to={`/chat/${profile.id}`} key={profile.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted">
-                <div className="flex items-center gap-3">
+              <div key={profile.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted group">
+                <Link to={`/chat/${profile.id}`} className="flex-grow flex items-center gap-3">
                   <Avatar>
+                    <AvatarImage src={profile.avatar_url ?? undefined} />
                     <AvatarFallback>{profile.username?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{profile.username}</span>
+                </Link>
+                <div className="flex items-center">
+                    <Button variant="ghost" size="icon" onClick={() => handleArchive(profile.id)}>
+                        <Archive className="h-5 w-5" />
+                        <span className="sr-only">Archive</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link to={`/chat/${profile.id}`}>
+                        <MessageSquare className="h-5 w-5" />
+                      </Link>
+                    </Button>
                 </div>
-                <Button variant="ghost" size="icon">
-                  <MessageSquare className="h-5 w-5" />
-                </Button>
-              </Link>
+              </div>
             ))}
             {filteredProfiles?.length === 0 && !isLoading && <p className="text-center text-muted-foreground">No users found.</p>}
           </div>
