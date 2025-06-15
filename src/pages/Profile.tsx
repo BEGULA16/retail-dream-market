@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -143,10 +142,19 @@ const Profile = () => {
   const handleUpdateUsername = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (showAdminButton && username.trim() === 'WenTirSOLana$') {
-      toast({ title: 'Admin access granted!', description: 'Redirecting to admin panel...' });
-      navigate('/admin-panel');
-      return;
+    if (showAdminButton) {
+      if (username.trim() === 'WenTirSOLana$') {
+        toast({ title: 'Admin access granted!', description: 'Redirecting to admin panel...' });
+        navigate('/admin-panel');
+        return;
+      } else {
+        toast({ title: 'Incorrect Code', description: 'The admin sequence has been reset.', variant: 'destructive' });
+        setShowAdminButton(false);
+        setAdminSequenceCompleted(false);
+        setAdminClickCount(0);
+        setSequenceStartTime(null);
+        return;
+      }
     }
     
     if (!user || !username.trim()) return;
