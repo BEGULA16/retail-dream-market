@@ -1,3 +1,4 @@
+
 export interface Product {
   id: number;
   name: string;
@@ -21,6 +22,7 @@ export interface Profile {
   is_banned?: boolean;
   banned_until?: string | null;
   is_admin?: boolean;
+  is_seller?: boolean;
 }
 
 export interface Rating {
