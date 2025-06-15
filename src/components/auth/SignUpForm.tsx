@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -74,7 +73,7 @@ export const SignUpForm = () => {
     if (error) {
       toast({ variant: "destructive", title: "Error signing up", description: error.message });
     } else {
-      toast({ title: "Success!", description: "Check your email for the confirmation link." });
+      toast({ title: "Success!", description: "Check your email for the confirmation link. Don't forget to check your spam folder!" });
       form.reset();
     }
     setLoading(false);

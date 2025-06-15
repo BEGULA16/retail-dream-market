@@ -42,7 +42,7 @@ const Auth = () => {
     } else {
       toast({
         title: "Password reset link sent",
-        description: "Please check your email to proceed.",
+        description: "Please check your email to proceed. Don't forget to check your spam folder!",
       });
     }
     setLoading(false);
