@@ -1,4 +1,3 @@
-
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -18,9 +17,10 @@ import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 
 const Header = () => {
-  const { user, session } = useAuth();
+  const { user, session, profile } = useAuth();
   const navigate = useNavigate();
   const { totalUnreadCount } = useUnreadCounts();
   const { permission, requestNotificationPermission } = useNotifications();
@@ -31,7 +31,7 @@ const Header = () => {
   };
 
   const getInitials = () => {
-    const name = user?.user_metadata?.username || user?.email;
+    const name = profile?.username || user?.email;
     if (!name) return 'U';
     return name.charAt(0).toUpperCase();
   };
@@ -49,6 +49,40 @@ const Header = () => {
         toast.error('Notifications permission was denied. You can change this in your browser settings.');
     }
   };
+
+  if (profile?.is_banned) {
+    const isTemporarilyBanned = profile.banned_until && new Date(profile.banned_until) > new Date();
+
+    const BanScreen = ({ children }: { children: React.ReactNode }) => (
+        <div className="fixed inset-0 bg-background z-[100] flex items-center justify-center p-4">
+            <div className="text-center max-w-md mx-auto">
+                {children}
+                <Button onClick={handleLogout} className="mt-6">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                </Button>
+            </div>
+        </div>
+    );
+    
+    if (isTemporarilyBanned) {
+        return (
+            <BanScreen>
+                <h1 className="text-4xl font-bold text-destructive">Account Restricted</h1>
+                <p className="text-muted-foreground mt-2">
+                    Your account is temporarily restricted. You can access the site again {formatDistanceToNow(new Date(profile.banned_until!), { addSuffix: true })}.
+                </p>
+            </BanScreen>
+        );
+    }
+
+    return (
+        <BanScreen>
+            <h1 className="text-4xl font-bold text-destructive">You are Banned</h1>
+            <p className="text-muted-foreground mt-2">You are permanently banned from accessing this site. If you believe this is a mistake, please contact support.</p>
+        </BanScreen>
+    );
+  }
 
   return (
     <header className="bg-background border-b sticky top-0 z-50">
@@ -69,7 +103,7 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.username} />
+                      <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.username} />
                       <AvatarFallback>{getInitials()}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -77,7 +111,7 @@ const Header = () => {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user?.user_metadata?.username}</p>
+                      <p className="text-sm font-medium leading-none">{profile?.username}</p>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user?.email}
                       </p>
