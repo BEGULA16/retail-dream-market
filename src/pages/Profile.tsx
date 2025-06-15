@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -88,10 +87,12 @@ const Profile = () => {
 
       toast({ title: 'Username updated successfully!' });
     } catch (error: any) {
+      console.error("Error updating username:", error);
+      const errorMessage = error.context?.body?.error || error.message || "An unknown error occurred.";
       toast({
         variant: 'destructive',
         title: 'Error updating username',
-        description: error.message || "Please ensure the 'update-username' Edge Function is set up correctly in Supabase.",
+        description: `${errorMessage} Please ensure the 'update-username' Edge Function is deployed correctly.`,
       });
     } finally {
       setLoading(false);
@@ -177,19 +178,25 @@ const Profile = () => {
   const handleDeleteAccount = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('delete-user', {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
         method: 'POST',
       });
+      
       if (error) throw error;
+
+      // Also check for errors returned in the data payload
+      if (data?.error) throw new Error(data.error);
 
       toast({ title: 'Account deleted successfully.' });
       await supabase.auth.signOut();
       navigate('/');
     } catch (error: any) {
+      console.error("Error deleting account:", error);
+      const errorMessage = error.context?.body?.error || error.message || "An unknown error occurred.";
       toast({
         variant: 'destructive',
         title: 'Error deleting account',
-        description: error.message || "Please ensure the 'delete-user' Edge Function is set up correctly in Supabase.",
+        description: `${errorMessage} Please ensure the 'delete-user' Edge Function is deployed and configured correctly.`,
       });
     } finally {
       setLoading(false);
