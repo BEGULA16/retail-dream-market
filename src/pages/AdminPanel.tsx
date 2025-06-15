@@ -14,14 +14,16 @@ import { Profile } from '@/types';
 import { toast } from 'sonner';
 
 const fetchUsers = async (): Promise<Profile[]> => {
+    // Attempt to fetch `updated_at` and alias it as `created_at` based on Supabase hint.
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, created_at, badge, is_banned');
+        .select('id, username, avatar_url, created_at:updated_at, badge, is_banned');
     
     if (error) {
-        // Gracefully handle missing column by re-fetching without it.
-        if (error.message.includes('column "created_at" does not exist')) {
-            console.warn("Column 'created_at' not found in 'profiles'. Omitting from query.");
+        // If aliasing `updated_at` fails, it could be that neither date column exists.
+        // Fallback to fetching without a date column.
+        if (error.message.includes('column') && (error.message.includes('updated_at') || error.message.includes('created_at'))) {
+            console.warn("Date column ('created_at' or 'updated_at') not found in 'profiles'. Omitting from query.");
             const { data: fallbackData, error: fallbackError } = await supabase
                 .from('profiles')
                 .select('id, username, avatar_url, badge, is_banned');
