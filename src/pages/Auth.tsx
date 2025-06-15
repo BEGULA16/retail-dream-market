@@ -136,7 +136,7 @@ const Auth = () => {
 
     if (error) {
       console.error('Error sending password reset email:', error);
-      toast({ variant: "destructive", title: "Error sending recovery email", description: "Please check console and verify Supabase URL config." });
+      toast({ variant: "destructive", title: "Error sending recovery email", description: "This often happens due to Supabase email provider config. Check your Site URL and SMTP settings in your Supabase dashboard." });
     } else {
       toast({
         title: "Password reset link sent",
