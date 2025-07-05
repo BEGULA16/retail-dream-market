@@ -15,7 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from './ui/skeleton';
-import { useHeadAdmin } from '@/hooks/useHeadAdmin';
+
 import { useNavigate } from 'react-router-dom';
 
 const fetchProductRatings = async (productId: number): Promise<Rating[]> => {
@@ -73,7 +73,7 @@ const Ratings = ({ productId }: { productId: number }) => {
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ratingToEdit, setRatingToEdit] = useState<Rating | null>(null);
-  const { data: headAdmin } = useHeadAdmin();
+  
   const navigate = useNavigate();
 
   const { data: ratings = [], isLoading } = useQuery({
@@ -113,22 +113,11 @@ const Ratings = ({ productId }: { productId: number }) => {
   }
 
   const handleReportRating = (rating: Rating) => {
-    if (!user) {
-        navigate('/auth');
-        return;
-    }
-
-    if (!headAdmin) {
-        toast({
-            title: "Cannot Submit Report",
-            description: "The head administrator is not configured to receive reports at this time.",
-            variant: "destructive",
-        });
-        return;
-    }
-    
-    const message = `Hi, I'm reporting a review (ID: ${rating.id}) for product ID ${productId}. Review comment: "${rating.comment}"`;
-    navigate(`/chat/${headAdmin.id}`, { state: { prefilledMessage: message, autoSend: true } });
+    toast({
+      title: "Report Feature Disabled", 
+      description: "Reporting functionality is currently unavailable.",
+      variant: "destructive",
+    });
   }
 
 

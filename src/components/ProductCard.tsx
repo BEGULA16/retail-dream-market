@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Flag, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useHeadAdmin } from "@/hooks/useHeadAdmin";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
@@ -20,7 +20,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data: headAdmin } = useHeadAdmin();
+  
   const queryClient = useQueryClient();
 
   const { mutate: deleteProduct, isPending: isDeleting } = useMutation({
@@ -75,23 +75,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!user) {
-        navigate('/auth');
-        return;
-    }
-
-    if (!headAdmin) {
-        toast({
-            title: "Cannot Submit Report",
-            description: "The head administrator is not configured to receive reports at this time.",
-            variant: "destructive",
-        });
-        return;
-    }
-    
-    const message = `Hi, I'm reporting this item named "${product.name}" with the ID of ${product.id} for having inappropriate content.`;
-    const imageUrl = product.image ? product.image.split(',')[0] : undefined;
-    navigate(`/chat/${headAdmin.id}`, { state: { prefilledMessage: message, prefilledImage: imageUrl, autoSend: true } });
+    toast({
+      title: "Report Feature Disabled",
+      description: "Reporting functionality is currently unavailable.",
+      variant: "destructive",
+    });
   };
 
   const imageUrl = product.image ? product.image.split(',')[0] : '/placeholder.svg';

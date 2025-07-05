@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUnreadCounts } from '@/hooks/useUnreadCounts';
 import { Profile } from '@/types';
 import Fuse from 'fuse.js';
-import { useHeadAdmin } from '@/hooks/useHeadAdmin';
+
 
 const fetchProfiles = async (): Promise<Profile[]> => {
   const { data, error } = await supabase
@@ -79,7 +79,7 @@ const ChatList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: headAdmin } = useHeadAdmin();
+  
 
   useEffect(() => {
     if (!user) {
@@ -109,15 +109,6 @@ const ChatList = () => {
 
   const handleArchive = async (profileId: string) => {
       if (!user) return;
-
-      if (headAdmin && profileId === headAdmin.id) {
-          toast({
-              title: "Action Not Allowed",
-              description: "The head admin contact cannot be archived.",
-              variant: "destructive",
-          });
-          return;
-      }
       
       try {
           const { error } = await supabase
@@ -178,8 +169,7 @@ const ChatList = () => {
           filteredProfiles = allProfilesToFilter?.filter(profile => {
               const isPartner = chatPartnerIds?.includes(profile.id);
               const isArchived = archivedIds?.includes(profile.id);
-              const isHeadAdmin = headAdmin ? profile.id === headAdmin.id : false;
-              return (isPartner || isHeadAdmin) && !isArchived;
+              return isPartner && !isArchived;
           });
       }
   }
@@ -246,8 +236,6 @@ const ChatList = () => {
                             variant="ghost" 
                             size="icon" 
                             onClick={() => handleArchive(profile.id)}
-                            disabled={headAdmin?.id === profile.id}
-                            title={headAdmin?.id === profile.id ? 'The head admin cannot be archived' : 'Archive'}
                         >
                             <Archive className="h-5 w-5" />
                             <span className="sr-only">Archive</span>

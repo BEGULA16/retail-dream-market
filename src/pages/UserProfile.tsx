@@ -14,7 +14,7 @@ import SellerRatings from '@/components/SellerRatings';
 import SellerProducts from '@/components/SellerProducts';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-import { useHeadAdmin } from '@/hooks/useHeadAdmin';
+
 import { useToast } from '@/hooks/use-toast';
 
 const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
@@ -67,7 +67,7 @@ const UserProfile = () => {
   const { userId } = useParams<{ userId:string }>();
   const navigate = useNavigate();
   const { user, profile: currentUserProfile } = useAuth();
-  const { data: headAdmin } = useHeadAdmin();
+  
   const { toast } = useToast();
 
   const { data: profile, isLoading, isError } = useQuery({
@@ -86,22 +86,11 @@ const UserProfile = () => {
   const averageRating = totalReviews > 0 ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalReviews : 0;
 
   const handleReportProfile = () => {
-    if (!user) {
-        navigate('/auth');
-        return;
-    }
-
-    if (!headAdmin) {
-        toast({
-            title: "Cannot Submit Report",
-            description: "The head administrator is not configured to receive reports at this time.",
-            variant: "destructive",
-        });
-        return;
-    }
-
-    const message = `Hi, I'm reporting the profile of "${profile!.username}" (ID: ${profile!.id}) for having inappropriate content.`;
-    navigate(`/chat/${headAdmin.id}`, { state: { prefilledMessage: message, autoSend: true } });
+    toast({
+      title: "Report Feature Disabled",
+      description: "Reporting functionality is currently unavailable.", 
+      variant: "destructive",
+    });
   };
 
   if (isLoading) {
