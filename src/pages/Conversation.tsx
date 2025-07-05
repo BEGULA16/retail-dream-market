@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { IMGBB_API_KEY } from '@/config';
 
 const fetchRecipientProfile = async (recipient_id: string) => {
     const { data, error } = await supabase
@@ -88,13 +89,21 @@ const Conversation = () => {
                     setIsSending(false);
                     return false;
                 }
-                const fileExt = imageFileToSend.name.split('.').pop();
-                const filePath = `${user.id}/${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage.from('messages').upload(filePath, imageFileToSend);
-                if (uploadError) throw uploadError;
                 
-                const { data } = supabase.storage.from('messages').getPublicUrl(filePath);
-                finalImageUrl = data.publicUrl;
+                // Upload to imgBB
+                const formData = new FormData();
+                formData.append('image', imageFileToSend);
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const result = await response.json();
+                
+                if (!response.ok || !result.data || !result.data.url) {
+                    throw new Error(result.error?.message || 'Failed to upload image to ImgBB');
+                }
+                
+                finalImageUrl = result.data.url;
             }
 
             const { error } = await supabase

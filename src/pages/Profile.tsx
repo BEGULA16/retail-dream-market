@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
+import { IMGBB_API_KEY } from '@/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -280,14 +282,21 @@ const Profile = () => {
         throw new Error('You must select an image to upload.');
       }
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      const publicUrl = data.publicUrl;
+      // Upload to imgBB
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
+      
+      if (!response.ok || !result.data || !result.data.url) {
+        throw new Error(result.error?.message || 'Failed to upload image to ImgBB');
+      }
+      
+      const publicUrl = result.data.url;
 
       await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
       await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
