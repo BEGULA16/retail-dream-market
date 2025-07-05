@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import config from '@/config.json';
 
 interface AuthContextType {
   session: Session | null;
@@ -164,8 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, queryClient, toast]);
 
   if (profile?.is_banned) {
-    // You can change the appeal link below to your desired URL.
-    const appealLink = 'https://google.com';
+    const appealLink = config.moderation.banredirect;
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">

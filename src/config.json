@@ -1,0 +1,68 @@
+{
+  "app": {
+    "name": "Marketplace",
+    "version": "1.0.0",
+    "description": "A modern marketplace application"
+  },
+  "features": {
+    "enableRegistration": true,
+    "enablePasswordReset": true,
+    "enableEmailVerification": false,
+    "enableSocialLogin": false,
+    "enableDarkMode": true,
+    "enableNotifications": true,
+    "enableFileUploads": true,
+    "enableChat": true,
+    "enableRatings": true,
+    "enableReporting": false
+  },
+  "limits": {
+    "messageRateLimit": 4000,
+    "maxImageSize": 2097152,
+    "maxImagesPerProduct": 5,
+    "maxProductDescriptionLength": 1000,
+    "maxUsernameLength": 30,
+    "maxMessageLength": 500,
+    "productsPerPage": 20,
+    "messagesPerPage": 50
+  },
+  "moderation": {
+    "banredirect": "https://google.com",
+    "enableProfanityFilter": false,
+    "autoModeration": false,
+    "requireEmailVerification": false,
+    "minAccountAge": 0
+  },
+  "ui": {
+    "showBranding": true,
+    "defaultTheme": "system",
+    "enableAnimations": true,
+    "compactMode": false,
+    "showOnlineStatus": true,
+    "enableSoundNotifications": false
+  },
+  "api": {
+    "enableRateLimiting": true,
+    "requestTimeout": 30000,
+    "maxRetries": 3,
+    "cacheEnabled": true
+  },
+  "security": {
+    "sessionTimeout": 86400000,
+    "enableCSRF": true,
+    "enableXSSProtection": true,
+    "strictTransportSecurity": true
+  },
+  "notifications": {
+    "enablePushNotifications": false,
+    "enableEmailNotifications": false,
+    "notificationSound": true,
+    "markAsReadDelay": 3000
+  },
+  "search": {
+    "enableFuzzySearch": true,
+    "maxSearchResults": 50,
+    "searchDebounceDelay": 300,
+    "enableSearchHistory": false
+  }
+}
