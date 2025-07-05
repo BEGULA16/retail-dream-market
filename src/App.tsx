@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,9 +15,7 @@ import { AuthProvider } from "./hooks/useAuth";
 import Profile from "./pages/Profile";
 import SellerPanel from "./pages/SellerPanel";
 import UserProfile from "./pages/UserProfile";
-import AdminPanel from "./pages/AdminPanel";
 import UpdatePassword from "./pages/UpdatePassword";
-import AdminRoute from "./components/auth/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -43,10 +42,6 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/user/:userId" element={<UserProfile />} />
               <Route path="/seller-panel" element={<SellerPanel />} />
-              
-              <Route element={<AdminRoute />}>
-                <Route path="/admin-panel" element={<AdminPanel />} />
-              </Route>
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
